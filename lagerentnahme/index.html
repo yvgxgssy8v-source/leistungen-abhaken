@@ -2333,7 +2333,7 @@
   <div class="modal-overlay" onclick="closeItemPicker()"></div>
   <div class="item-picker-sheet">
     <div class="item-picker-head">
-      <h2 class="item-picker-title">Artikel wählen</h2>
+      <h2 class="item-picker-title" id="item-picker-title">Artikel wählen</h2>
       <button type="button" class="item-picker-close" onclick="closeItemPicker()" aria-label="Schließen">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
       </button>
@@ -2462,9 +2462,11 @@ const S = {
   gpsError: null,           // letzter GPS-Fehler
   todoDelPending: null,     // {id, name} für Bestätigungsdialog
   // Restmaterial einlagern (Rücklagerung von Baustellen-Resten ins Lager)
-  itemPickerTarget: 'zugang',  // 'zugang' | 'restmaterial' – steuert den gemeinsamen Artikel-Picker
+  itemPickerTarget: 'zugang',  // 'zugang' | 'restmaterial' | 'barcode-link'
   restmatSelItem: null,
   restmatSelSite: '',
+  pendingBarcode: null,        // Code, der gerade einem Artikel zugeordnet wird
+  pendingBarcodeResume: null,  // 'entnahme' | 'restmaterial' – wohin danach zurückgesprungen wird
 };
 // Firmenstandort Jahnstraße 13, Chemnitz
 const OFFICE_LAT = 50.8288494;
@@ -4682,9 +4684,14 @@ function _renderItemPickerList(q){
     </div>`;
   }).join('');
 }
+function _resetItemPickerTitle(){
+  const t = el('item-picker-title');
+  if(t) t.textContent = 'Artikel wählen';
+}
 window.openZugangPicker=function(){
   S.itemPickerTarget='zugang';
   const m=el('item-picker'); if(!m) return;
+  _resetItemPickerTitle();
   el('item-picker-input').value='';
   el('item-picker-clear').classList.remove('visible');
   _renderItemPickerList('');
@@ -4697,6 +4704,23 @@ window.openZugangPicker=function(){
 window.openRestmatPicker=function(){
   S.itemPickerTarget='restmaterial';
   const m=el('item-picker'); if(!m) return;
+  _resetItemPickerTitle();
+  el('item-picker-input').value='';
+  el('item-picker-clear').classList.remove('visible');
+  _renderItemPickerList('');
+  m.style.display='flex';
+  setTimeout(()=>{ try{ el('item-picker-input').focus(); }catch(e){} }, 60);
+  setTimeout(()=>{ el('item-picker-list').scrollTop=0; }, 0);
+};
+// Öffnet den Artikel-Picker im "Barcode zuordnen"-Modus: ein unbekannter,
+// gescannter Code soll einem bestehenden Artikel zugewiesen werden.
+// resumeTarget = 'entnahme' | 'restmaterial' – wohin nach dem Zuordnen zurückgesprungen wird.
+window.openBarcodeLinkPicker=function(code, resumeTarget){
+  S.itemPickerTarget='barcode-link';
+  S.pendingBarcode=code;
+  S.pendingBarcodeResume=resumeTarget;
+  const m=el('item-picker'); if(!m) return;
+  const t=el('item-picker-title'); if(t) t.textContent = 'Barcode „'+code+'“ welchem Artikel zuordnen?';
   el('item-picker-input').value='';
   el('item-picker-clear').classList.remove('visible');
   _renderItemPickerList('');
@@ -4719,10 +4743,8 @@ window.clearItemPicker=function(){
   _renderItemPickerList('');
   try{ inp.focus(); }catch(e){}
 };
-// Gemeinsamer Artikel-Picker: schreibt je nach S.itemPickerTarget in die
-// Zugang- oder Restmaterial-Felder. Name bleibt 'selectZugangItem', da der
-// gerenderte Picker-HTML diesen Funktionsnamen fest referenziert.
-window.selectZugangItem=function(id){
+// Füllt die Zugang- oder Restmaterial-Trigger-Felder mit dem gewählten Artikel.
+function _applyItemToTrigger(id){
   const it=(S.items||[]).find(i=>String(i.id)===String(id));
   if(!it) return;
   const target = S.itemPickerTarget === 'restmaterial' ? 'restmat' : 'zugang';
@@ -4741,6 +4763,46 @@ window.selectZugangItem=function(id){
     thumb.innerHTML=`<span>${escapeHtml(first)}</span>`;
   }
   if(target==='restmat') S.restmatSelItem = it;
+}
+// Ordnet einen vorher unbekannten, gescannten Barcode einem bestehenden Artikel
+// zu (per RPC, damit auch Vorarbeiter das dürfen, ohne generelle Schreibrechte
+// auf 'items' zu bekommen) und springt danach in den ursprünglichen Ablauf zurück.
+async function assignBarcodeAndResume(id){
+  const code = S.pendingBarcode;
+  const resume = S.pendingBarcodeResume;
+  let linked = false;
+  try{
+    const { error } = await S.sb.rpc('link_item_barcode', { p_item_id: id, p_barcode: code });
+    if(!error){
+      linked = true;
+      const it = (S.items||[]).find(i=>String(i.id)===String(id));
+      if(it) it.barcode = code;
+    } else {
+      console.warn('link_item_barcode RPC error', error);
+    }
+  }catch(e){ console.warn('link_item_barcode exception', e); }
+  closeItemPicker();
+  S.pendingBarcode = null; S.pendingBarcodeResume = null;
+  if(linked) toast('✓ Barcode gespeichert – wird künftig automatisch erkannt', 'ok');
+  else toast('Artikel ausgewählt, Barcode konnte aber nicht gespeichert werden', '');
+  if(resume === 'entnahme'){
+    selectEntnahmeItem(id);
+  } else if(resume === 'restmaterial'){
+    S.itemPickerTarget = 'restmaterial';
+    _applyItemToTrigger(id);
+  }
+}
+// Gemeinsamer Artikel-Picker-Klick: verzweigt je nach S.itemPickerTarget in
+// Zugang/Restmaterial-Auswahl oder Barcode-Zuordnung. Name bleibt
+// 'selectZugangItem', da der gerenderte Picker-HTML diesen Funktionsnamen fest referenziert.
+window.selectZugangItem=function(id){
+  const it=(S.items||[]).find(i=>String(i.id)===String(id));
+  if(!it) return;
+  if(S.itemPickerTarget === 'barcode-link'){
+    assignBarcodeAndResume(id);
+    return;
+  }
+  _applyItemToTrigger(id);
   closeItemPicker();
 };
 
@@ -5673,9 +5735,8 @@ window.scanBarcodeForEntnahme = async function(){
     toast('✓ ' + item.name, 'ok');
     selectEntnahmeItem(item.id);
   }else{
-    el('entnahme-search').value = code;
-    renderEntnahmeList();
-    toast('Kein Artikel zu Code: ' + code, 'err');
+    toast('Barcode unbekannt – bitte Artikel zuordnen', '');
+    openBarcodeLinkPicker(code, 'entnahme');
   }
 };
 
@@ -5700,9 +5761,10 @@ window.scanBarcodeForRestmat = async function(){
   if(item){
     toast('✓ ' + item.name, 'ok');
     S.itemPickerTarget = 'restmaterial';
-    selectZugangItem(item.id);
+    _applyItemToTrigger(item.id);
   }else{
-    toast('Kein Artikel zu Code: ' + code + ' – bitte Barcode in „Artikel verwalten" hinterlegen', 'err');
+    toast('Barcode unbekannt – bitte Artikel zuordnen', '');
+    openBarcodeLinkPicker(code, 'restmaterial');
   }
 };
 
