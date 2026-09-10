@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.20.1</title>
+  <title>Lagerentnahme V1.21.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.20.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.21.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -5979,25 +5979,25 @@ window.importBarcodeCsv=async function(){
 };
 
 // ════════════════ BARCODE / QR SCANNER ════════════════
-// Nutzt nach Möglichkeit den nativen BarcodeDetector (einige Android-Chrome-
-// Versionen unterstützen QR + EAN/Code128 direkt). Kein Browser mit nativem
-// BarcodeDetector (z.B. iOS Safari) → Fallback auf ZXing, das echte 1D-Strichcodes
-// (EAN-13/8, UPC-A/E, Code128, Code39, ITF) UND QR-Codes rein in JS dekodiert.
-let _zxingLoading = null;
-function loadZXing(){
-  if(window.ZXing) return Promise.resolve(window.ZXing);
-  if(_zxingLoading) return _zxingLoading;
-  _zxingLoading = new Promise((resolve, reject) => {
+// Nutzt @zxing/browser: übernimmt Kamera-Start, Video-Anbindung und
+// kontinuierliches Dekodieren komplett selbst (offiziell dokumentierte,
+// gut getestete High-Level-API). Erkennt QR-Codes UND echte 1D-Strichcodes
+// (EAN-13/8, UPC-A/E, Code128, Code39, ITF …) einheitlich auf jedem Gerät.
+let _zxingBrowserLoading = null;
+function loadZXingBrowser(){
+  if(window.ZXingBrowser) return Promise.resolve(window.ZXingBrowser);
+  if(_zxingBrowserLoading) return _zxingBrowserLoading;
+  _zxingBrowserLoading = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
-    s.onload = () => resolve(window.ZXing);
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js';
+    s.onload = () => resolve(window.ZXingBrowser);
     s.onerror = () => reject(new Error('Scanner-Bibliothek konnte nicht geladen werden'));
     document.head.appendChild(s);
   });
-  return _zxingLoading;
+  return _zxingBrowserLoading;
 }
 
-const _scan = { active:false, stream:null, raf:0, detector:null, zxingReader:null, onResult:null, canvas:null, ctx:null };
+const _scan = { active:false, controls:null, onResult:null };
 
 function _qrEls(){
   return { modal:el('qr-modal'), video:el('qr-video'), status:el('qr-status'), sub:el('qr-sub'), title:el('qr-title') };
@@ -6011,124 +6011,60 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   els.modal.classList.add('show');
   el('qr-close').onclick = () => closeScanner();
 
+  let ZXingBrowser;
   try{
-    _scan.stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
+    ZXingBrowser = await loadZXingBrowser();
   }catch(e){
-    els.status.textContent = 'Kamera nicht erlaubt';
-    els.sub.textContent = 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
+    els.status.textContent = 'Scanner nicht verfügbar';
+    els.sub.textContent = e.message;
     return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
   }
-  els.video.srcObject = _scan.stream;
-  try{ await els.video.play(); }catch(e){}
 
-  let useNative = false;
-  if(window.BarcodeDetector){
-    try{
-      const formats = await window.BarcodeDetector.getSupportedFormats();
-      _scan.detector = new window.BarcodeDetector({ formats });
-      useNative = true;
-    }catch(e){ useNative = false; }
-  }
-  if(!useNative){
-    try{
-      const ZXing = await loadZXing();
-      const hints = new Map();
-      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXing.BarcodeFormat.QR_CODE,
-        ZXing.BarcodeFormat.EAN_13,
-        ZXing.BarcodeFormat.EAN_8,
-        ZXing.BarcodeFormat.UPC_A,
-        ZXing.BarcodeFormat.UPC_E,
-        ZXing.BarcodeFormat.CODE_128,
-        ZXing.BarcodeFormat.CODE_39,
-        ZXing.BarcodeFormat.ITF
-      ]);
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      _scan.zxingReader = new ZXing.MultiFormatReader();
-      _scan.zxingReader.setHints(hints);
-    }catch(e){
-      els.status.textContent = 'Scanner nicht verfügbar';
-      els.sub.textContent = e.message;
-      return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
-    }
-    _scan.canvas = document.createElement('canvas');
-    _scan.ctx = _scan.canvas.getContext('2d', { willReadFrequently: true });
-  }
-
-  els.status.textContent = 'Code mittig im Rahmen halten';
   _scan.active = true;
+  const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
 
-  // Canvas immer anlegen (auch für BarcodeDetector) damit wir auf den
-  // mittigen Rahmen (ROI) zuschneiden können. Dadurch ignoriert der Scanner
-  // Codes außerhalb des Rahmens, und die Ansicht bleibt durchgehend gleich.
-  if(!_scan.canvas){
-    _scan.canvas = document.createElement('canvas');
-    _scan.ctx = _scan.canvas.getContext('2d', { willReadFrequently: true });
-  }
-
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     _scan.onResult = (value) => { resolve(value); };
-    const tick = async () => {
+
+    const handleFrame = (result, err, controls) => {
       if(!_scan.active) return;
-      const v = els.video;
-      if(v.readyState >= 2 && v.videoWidth > 0){
-        let value = null;
-        try{
-          // ROI berechnen: gleiches Seitenverhältnis wie das CSS-Frame (85vmin × 46vmin,
-          // max 380×210) – ein breites Rechteck statt Quadrat, damit ein normaler
-          // Strichcode (breit, flach) beim Scannen nicht seitlich abgeschnitten wird.
-          const vw = v.videoWidth, vh = v.videoHeight;
-          const roiW = Math.round(Math.min(vw * 0.85, vh * 1.55));
-          const roiH = Math.round(roiW * (210/380));
-          const sx = Math.round((vw - roiW) / 2);
-          const sy = Math.round((vh - roiH) / 2);
-          _scan.canvas.width = roiW; _scan.canvas.height = roiH;
-          _scan.ctx.drawImage(v, sx, sy, roiW, roiH, 0, 0, roiW, roiH);
-          if(useNative){
-            const codes = await _scan.detector.detect(_scan.canvas);
-            if(codes && codes.length) value = codes[0].rawValue;
-          }else{
-            try{
-              const data = _scan.ctx.getImageData(0, 0, roiW, roiH);
-              const ZXing = window.ZXing;
-              const luminanceSource = new ZXing.RGBLuminanceSource(data.data, roiW, roiH);
-              const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-              const result = _scan.zxingReader.decode(binaryBitmap);
-              if(result) value = result.getText();
-            }catch(e){
-              // NotFoundException ist normal (kein Code im aktuellen Bild) – einfach weiterscannen.
-              // Alles andere (z.B. echte Programmfehler) zur Diagnose in der Konsole ausgeben.
-              if(e && e.name !== 'NotFoundException') console.warn('[scanner] ZXing decode error', e);
-            }
-          }
-        }catch(e){}
-        if(value){
-          els.status.textContent = '✓ ' + value;
-          if(navigator.vibrate) { try{ navigator.vibrate(60); }catch(e){} }
-          _scan.active = false;
-          setTimeout(()=>{
-            try{ if(_scan.stream){ _scan.stream.getTracks().forEach(t=>t.stop()); _scan.stream=null; } }catch(e){}
-            try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
-            els.modal.classList.remove('show');
-            const cb = _scan.onResult; _scan.onResult = null;
-            if(cb) cb(value);
-          }, 200);
-          return;
-        }
+      _scan.controls = controls;
+      if(result){
+        const value = result.getText();
+        els.status.textContent = '✓ ' + value;
+        if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
+        _scan.active = false;
+        try{ controls.stop(); }catch(e){}
+        setTimeout(()=>{
+          try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
+          els.modal.classList.remove('show');
+          const cb = _scan.onResult; _scan.onResult = null;
+          if(cb) cb(value);
+        }, 200);
+      } else if(err && err.name !== 'NotFoundException'){
+        // Alles außer "kein Code im aktuellen Bild" zur Diagnose ausgeben
+        console.warn('[scanner] decode error', err);
       }
-      _scan.raf = requestAnimationFrame(tick);
     };
-    _scan.raf = requestAnimationFrame(tick);
+
+    codeReader.decodeFromConstraints(
+      { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+      els.video,
+      handleFrame
+    ).then(controls => {
+      _scan.controls = controls;
+      if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
+    }).catch(e => {
+      els.status.textContent = 'Kamera nicht erlaubt';
+      els.sub.textContent = 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
+    });
   });
 }
 
 function closeScanner(){
   _scan.active = false;
-  if(_scan.raf){ cancelAnimationFrame(_scan.raf); _scan.raf = 0; }
-  try{ if(_scan.stream){ _scan.stream.getTracks().forEach(t => t.stop()); _scan.stream = null; } }catch(e){}
+  try{ if(_scan.controls) _scan.controls.stop(); }catch(e){}
+  _scan.controls = null;
   const els = _qrEls();
   try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
   els.modal.classList.remove('show');
