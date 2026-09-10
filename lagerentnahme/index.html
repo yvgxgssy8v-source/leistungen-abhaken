@@ -5979,23 +5979,25 @@ window.importBarcodeCsv=async function(){
 };
 
 // ════════════════ BARCODE / QR SCANNER ════════════════
-// Nutzt nach Möglichkeit den nativen BarcodeDetector (Android Chrome unterstützt
-// QR + EAN/Code128). iOS-Safari hat keinen BarcodeDetector → jsQR Fallback (nur QR).
-let _jsQRLoading = null;
-function loadJsQR(){
-  if(window.jsQR) return Promise.resolve(window.jsQR);
-  if(_jsQRLoading) return _jsQRLoading;
-  _jsQRLoading = new Promise((resolve, reject) => {
+// Nutzt nach Möglichkeit den nativen BarcodeDetector (einige Android-Chrome-
+// Versionen unterstützen QR + EAN/Code128 direkt). Kein Browser mit nativem
+// BarcodeDetector (z.B. iOS Safari) → Fallback auf ZXing, das echte 1D-Strichcodes
+// (EAN-13/8, UPC-A/E, Code128, Code39, ITF) UND QR-Codes rein in JS dekodiert.
+let _zxingLoading = null;
+function loadZXing(){
+  if(window.ZXing) return Promise.resolve(window.ZXing);
+  if(_zxingLoading) return _zxingLoading;
+  _zxingLoading = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-    s.onload = () => resolve(window.jsQR);
-    s.onerror = () => reject(new Error('jsQR konnte nicht geladen werden'));
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library/umd/index.min.js';
+    s.onload = () => resolve(window.ZXing);
+    s.onerror = () => reject(new Error('Scanner-Bibliothek konnte nicht geladen werden'));
     document.head.appendChild(s);
   });
-  return _jsQRLoading;
+  return _zxingLoading;
 }
 
-const _scan = { active:false, stream:null, raf:0, detector:null, onResult:null, canvas:null, ctx:null };
+const _scan = { active:false, stream:null, raf:0, detector:null, zxingReader:null, onResult:null, canvas:null, ctx:null };
 
 function _qrEls(){
   return { modal:el('qr-modal'), video:el('qr-video'), status:el('qr-status'), sub:el('qr-sub'), title:el('qr-title') };
@@ -6031,8 +6033,23 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     }catch(e){ useNative = false; }
   }
   if(!useNative){
-    try{ await loadJsQR(); }
-    catch(e){
+    try{
+      const ZXing = await loadZXing();
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.QR_CODE,
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.ITF
+      ]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+      _scan.zxingReader = new ZXing.MultiFormatReader();
+      _scan.zxingReader.setHints(hints);
+    }catch(e){
       els.status.textContent = 'Scanner nicht verfügbar';
       els.sub.textContent = e.message;
       return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
@@ -6073,9 +6090,16 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
             const codes = await _scan.detector.detect(_scan.canvas);
             if(codes && codes.length) value = codes[0].rawValue;
           }else{
-            const data = _scan.ctx.getImageData(0, 0, roi, roi);
-            const r = window.jsQR(data.data, roi, roi, { inversionAttempts: 'attemptBoth' });
-            if(r && r.data) value = r.data;
+            try{
+              const data = _scan.ctx.getImageData(0, 0, roi, roi);
+              const ZXing = window.ZXing;
+              const luminanceSource = new ZXing.RGBLuminanceSource(data.data, roi, roi);
+              const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+              const result = _scan.zxingReader.decode(binaryBitmap);
+              if(result) value = result.getText();
+            }catch(e){
+              // NotFoundException ist normal (kein Code im aktuellen Bild) – einfach weiterscannen
+            }
           }
         }catch(e){}
         if(value){
