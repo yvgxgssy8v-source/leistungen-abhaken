@@ -2222,6 +2222,7 @@
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
         <button class="btn btn-primary" style="flex:1;" onclick="openArtikelForm(null)">+ Neuer Artikel</button>
         <button class="btn btn-outline" style="flex:1;" onclick="toggleCsvImport()">CSV-Import</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="toggleBarcodeImport()">Barcode-Import</button>
       </div>
       <div id="csv-import-box" style="display:none;margin-bottom:14px;">
         <div class="form-group">
@@ -2230,6 +2231,16 @@
           <div class="helper">Eine Zeile pro Artikel. Kopfzeile optional.</div>
         </div>
         <button class="btn btn-primary btn-full" onclick="importCsv()">Importieren</button>
+        <hr class="divider">
+      </div>
+      <div id="barcode-import-box" style="display:none;margin-bottom:14px;">
+        <div class="form-group">
+          <label class="form-label">Barcode-Zuordnung (sku,barcode)</label>
+          <textarea id="barcode-csv-text" placeholder="MAT-0010,4006381333931&#10;MAT-0011,4006381444042"></textarea>
+          <div class="helper">Eine Zeile pro Artikel. Ändert NUR das Barcode-Feld bei bestehenden Artikeln (SKU muss schon existieren) – alle anderen Artikeldaten bleiben unverändert. Kopfzeile optional.</div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="importBarcodeCsv()">Barcodes zuordnen</button>
+        <div id="barcode-import-result" style="margin-top:10px;font-size:14px;"></div>
         <hr class="divider">
       </div>
       <div class="search-wrap">
@@ -5711,6 +5722,7 @@ window.openArtikel=async function(){
   el('artikel-listview').style.display='block';
   el('artikel-formview').style.display='none';
   el('csv-import-box').style.display='none';
+  el('barcode-import-box').style.display='none';
   await loadItems();
   renderArtikelList();
 };
@@ -5920,6 +5932,50 @@ window.importCsv=async function(){
     renderArtikelList();
     toggleCsvImport();
   }catch(e){ toast('Import-Fehler: '+e.message,'err'); }
+};
+
+// ════════════════ BARCODE-MASSEN-ZUORDNUNG ════════════════
+// Ändert gezielt NUR das barcode-Feld bei bereits bestehenden Artikeln
+// (per einzelnem UPDATE je Zeile, kein upsert!) – alle anderen Felder
+// (Name, Preis, Bestand, Kostenstelle …) bleiben dabei unangetastet.
+window.toggleBarcodeImport=function(){
+  const b=el('barcode-import-box'); b.style.display = b.style.display==='none'?'block':'none';
+};
+window.importBarcodeCsv=async function(){
+  const text=el('barcode-csv-text').value.trim();
+  const resultBox = el('barcode-import-result');
+  resultBox.textContent = '';
+  if(!text){ toast('Bitte CSV einfügen','err'); return; }
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rows=[];
+  for(const line of lines){
+    const cols=line.split(',').map(c=>c.trim());
+    if(/^sku$/i.test(cols[0]) || /^artikel/i.test(cols[0])) continue; // Kopfzeile überspringen
+    const [sku,barcode]=cols;
+    if(!sku || !barcode) continue;
+    rows.push({ sku, barcode });
+  }
+  if(!rows.length){ toast('Keine gültigen Zeilen (Format: sku,barcode)','err'); return; }
+  let ok=0; const notFound=[]; const failed=[]; const collisions=[];
+  for(const r of rows){
+    const item = (S.items||[]).find(i=>String(i.id)===String(r.sku));
+    if(!item){ notFound.push(r.sku); continue; }
+    const dupe = (S.items||[]).find(i=>String(i.id)!==String(r.sku) && (i.barcode||'').toLowerCase()===r.barcode.toLowerCase());
+    if(dupe){ collisions.push(`${r.sku} (Code schon bei ${dupe.id})`); continue; }
+    try{
+      const { error } = await S.sb.from('items').update({ barcode: r.barcode }).eq('id', r.sku);
+      if(error){ failed.push(r.sku); continue; }
+      item.barcode = r.barcode; // lokal sofort aktualisieren
+      ok++;
+    }catch(e){ failed.push(r.sku); }
+  }
+  let summary = `✓ ${ok} von ${rows.length} Barcodes zugeordnet.`;
+  if(notFound.length) summary += ` Unbekannte SKUs: ${notFound.join(', ')}.`;
+  if(collisions.length) summary += ` Bereits vergeben: ${collisions.join(', ')}.`;
+  if(failed.length) summary += ` Fehlgeschlagen: ${failed.join(', ')}.`;
+  resultBox.textContent = summary;
+  toast(ok>0 ? `✓ ${ok} Barcode(s) gespeichert` : 'Keine Barcodes gespeichert', ok>0?'ok':'err');
+  if(ok>0){ el('barcode-csv-text').value=''; renderArtikelList(); }
 };
 
 // ════════════════ BARCODE / QR SCANNER ════════════════
