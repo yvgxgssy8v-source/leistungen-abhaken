@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.22.0</title>
+  <title>Lagerentnahme V1.23.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.22.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.23.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2292,10 +2292,10 @@
       </div>
       <div class="form-group">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-          <input type="checkbox" id="art-restfaehig" style="width:20px;height:20px;flex-shrink:0;">
-          <span class="form-label" style="margin:0;">Für Restmaterial geeignet</span>
+          <input type="checkbox" id="art-kein-restmaterial" style="width:20px;height:20px;flex-shrink:0;">
+          <span class="form-label" style="margin:0;">Restmaterial nicht geeignet</span>
         </label>
-        <div class="helper">Nur Artikel mit diesem Haken erscheinen in "Restmaterial einlagern" (z. B. Farben/Lacke mit Restmengen). Standard: aus.</div>
+        <div class="helper">Haken nur bei reinen Verbrauchsartikeln setzen (z. B. Schleifscheiben, Dichtstoff). Diese erscheinen dann NICHT in "Restmaterial einlagern". Standard: aus (also sichtbar).</div>
       </div>
       <div class="form-group">
         <label class="form-label">Barcode / QR-Code (optional)</label>
@@ -5009,10 +5009,11 @@ function _renderItemPickerList(q){
   const list=el('item-picker-list');
   let items=(S.items||[]).filter(i=>i.aktiv!==false);
   // Im Restmaterial-Kontext (manuelle Auswahl oder Barcode-Zuordnung, die dorthin
-  // zurückspringt) nur Artikel zeigen, die als "für Restmaterial geeignet" markiert sind.
+  // zurückspringt) Artikel ausblenden, die explizit als "Restmaterial nicht geeignet"
+  // markiert sind (Verbrauchsartikel wie Schleifscheiben, Dichtstoff). Standard: sichtbar.
   const restrictToRestfaehig = S.itemPickerTarget === 'restmaterial'
     || (S.itemPickerTarget === 'barcode-link' && S.pendingBarcodeResume === 'restmaterial');
-  if(restrictToRestfaehig) items = items.filter(i => !!i.restfaehig);
+  if(restrictToRestfaehig) items = items.filter(i => !i.restmaterial_ausschliessen);
   const term=(q||'').trim().toLowerCase();
   let filtered=items;
   if(term){
@@ -5024,7 +5025,7 @@ function _renderItemPickerList(q){
   filtered.sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
   if(!filtered.length){
     list.innerHTML = restrictToRestfaehig
-      ? '<div class="item-picker-empty">Kein Artikel als "für Restmaterial geeignet" markiert. Bitte in "Artikel verwalten" den Schalter setzen.</div>'
+      ? '<div class="item-picker-empty">Kein passender Artikel gefunden (Verbrauchsartikel sind hier ausgeblendet).</div>'
       : '<div class="item-picker-empty">Keine Artikel gefunden</div>';
     return;
   }
@@ -5750,7 +5751,7 @@ window.renderArtikelList=function(){
     const numCell = i.bild_url ? `<img src="${escapeHtml(i.bild_url)}" alt="">` : firstChar;
     const inactive = i.aktiv===false;
     const badge = inactive ? ` <span style="display:inline-block;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;">deaktiviert</span>` : '';
-    const restBadge = i.restfaehig ? ` <span style="display:inline-block;background:#ccfbf1;color:#0f766e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;">Restmaterial</span>` : '';
+    const restBadge = i.restmaterial_ausschliessen ? ` <span style="display:inline-block;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle;">kein Restmaterial</span>` : '';
     const cardStyle = inactive ? 'cursor:default;opacity:.55;' : 'cursor:default;';
     return `<div class="proj-card" style="${cardStyle}">
       <div class="proj-num">${numCell}</div>
@@ -5788,7 +5789,7 @@ window.openArtikelForm=async function(id){
   el('art-ep').value = item && item.unit_price!=null && item.unit_price!=='' ? String(item.unit_price).replace(',','.') : '';
   el('art-cost').value = item ? (item.cost_center || '') : '';
   el('art-barcode').value = item ? (item.barcode || '') : '';
-  el('art-restfaehig').checked = item ? !!item.restfaehig : false;
+  el('art-kein-restmaterial').checked = item ? !!item.restmaterial_ausschliessen : false;
   el('art-image').value='';
   // Toggle-Button (Deaktivieren / Aktivieren) nur für bestehende Artikel und Admins
   const tr = el('art-toggle-row');
@@ -5854,7 +5855,7 @@ window.saveArtikel=async function(){
   const epRaw = (el('art-ep').value||'').trim();
   const unit_price = epRaw==='' ? null : (parseNum(epRaw)||0);
   const cost_center = ((el('art-cost')?.value)||'').trim() || null;
-  const restfaehig = !!el('art-restfaehig')?.checked;
+  const restmaterial_ausschliessen = !!el('art-kein-restmaterial')?.checked;
   const btn=el('art-save'); btn.disabled=true; const o=btn.innerHTML; btn.innerHTML='<span class="spin"></span> Speichern…';
   try{
     // Bild ggf. hochladen
@@ -5870,13 +5871,13 @@ window.saveArtikel=async function(){
     }
     const barcode = (el('art-barcode').value || '').trim() || null;
     if(editing){
-      const upd={ name, einheit, kategorie, bestand:min, barcode, unit_price, alert_threshold, cost_center, restfaehig };
+      const upd={ name, einheit, kategorie, bestand:min, barcode, unit_price, alert_threshold, cost_center, restmaterial_ausschliessen };
       if(bild_url!==undefined) upd.bild_url=bild_url;
       const { error } = await S.sb.from('items').update(upd).eq('id', S._editArtikelId);
       if(error) throw error;
       toast('✓ Artikel aktualisiert','ok');
     }else{
-      const rec={ id:sku, name, einheit, kategorie, mindestbestand:0, bestand:min, aktiv:true, barcode, unit_price, alert_threshold, cost_center, restfaehig };
+      const rec={ id:sku, name, einheit, kategorie, mindestbestand:0, bestand:min, aktiv:true, barcode, unit_price, alert_threshold, cost_center, restmaterial_ausschliessen };
       if(bild_url!==undefined) rec.bild_url=bild_url;
       const { error } = await S.sb.from('items').insert(rec);
       if(error) throw error;
