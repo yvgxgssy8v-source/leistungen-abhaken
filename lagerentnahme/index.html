@@ -1540,7 +1540,7 @@
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span class="mailbox-badge" id="mailbox-badge" style="display:none;">0</span>
     </button>
-    <span class="pending-badge" id="pending-badge" onclick="processOutbox(true)" title="Ausstehende Buchungen synchronisieren"></span>
+    <span class="pending-badge" id="pending-badge" onclick="processOutbox(true); processRestlagerOutbox(true);" title="Ausstehende Buchungen synchronisieren"></span>
     <span id="net-badge" class="badge online">online</span>
     <div class="settings-wrap">
       <button class="settings-btn" id="settings-btn" onclick="toggleSettings()" title="Einstellungen">
@@ -1601,6 +1601,11 @@
         <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/></svg></div>
         <div class="tile-title">Restmaterial einlagern</div>
         <div class="tile-sub">Reste von der Baustelle ins Lager buchen</div>
+      </button>
+      <button class="tile" onclick="openRestlagerAuslagern()">
+        <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M12 12.01L3.27 6.96"/><path d="M12 12.01V22.08"/><path d="M12 12.01l8.73-5.05"/><path d="M8 15l-4 4m0 0l4 4m-4-4h9"/></svg></div>
+        <div class="tile-title">Restmaterial entnehmen</div>
+        <div class="tile-sub">Eingelagerte Reste wieder mitnehmen</div>
       </button>
       <button class="tile admin-only" onclick="openBestand()">
         <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></div>
@@ -2083,6 +2088,76 @@
   </main>
 </div>
 
+<!-- ═══════════════════ RESTMATERIAL ENTNEHMEN (Auslagern) ═══════════════════ -->
+<div id="screen-restlager-auslagern" class="screen">
+  <header>
+    <button class="back-btn" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
+    <h1 style="font-size:var(--fs-lg);">Restmaterial entnehmen</h1>
+    <div class="spacer"></div>
+  </header>
+  <main>
+    <!-- Schritt 1: verfügbaren Posten wählen -->
+    <div id="restlagerausl-step1">
+      <div class="helper" style="margin-bottom:14px;">Dies ist eine eigene Bestandsliste für eingelagerte Reste – unabhängig vom normalen Lagerbestand.</div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="restlagerausl-search" placeholder="Artikel suchen…" oninput="renderRestlagerAuslagerList()" autocomplete="off">
+      </div>
+      <div class="stats-row" id="restlagerausl-stats"></div>
+      <div id="restlagerausl-list"></div>
+    </div>
+    <!-- Schritt 2: Menge + Ziel-Baustelle -->
+    <div id="restlagerausl-step2" style="display:none;">
+      <div class="sel-card" id="restlagerausl-sel"></div>
+      <div class="form-group">
+        <label class="form-label">Menge</label>
+        <div class="qty-stepper">
+          <div class="qty-total-row">
+            <span class="qty-total-lbl">Gesamt</span>
+            <span class="qty-total-val" id="restlagerausl-menge-display">0</span>
+            <button type="button" class="qty-reset" onclick="restlagerAuslQty.set(0)" aria-label="Auf 0 setzen">×</button>
+          </div>
+          <div id="restlagerausl-menge-max" style="text-align:center;font-size:14px;color:#6b7280;margin-top:4px;"></div>
+          <div class="qty-row">
+            <button type="button" class="qty-btn qty-minus" onclick="restlagerAuslQty.add(-1)">−</button>
+            <span class="qty-step-lbl">1</span>
+            <button type="button" class="qty-btn qty-plus" onclick="restlagerAuslQty.add(1)">+</button>
+          </div>
+          <div class="qty-row">
+            <button type="button" class="qty-btn qty-minus" onclick="restlagerAuslQty.add(-5)">−</button>
+            <span class="qty-step-lbl">5</span>
+            <button type="button" class="qty-btn qty-plus" onclick="restlagerAuslQty.add(5)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Für welche Baustelle <span class="req">*</span></label>
+        <div id="restlagerausl-site-recent-wrap" style="display:none;margin-bottom:10px;">
+          <div class="site-recent-lbl">Zuletzt verwendet</div>
+          <div id="restlagerausl-site-recent-list"></div>
+        </div>
+        <button type="button" class="site-picker-btn" id="restlagerausl-site-picker-btn" onclick="openRestlagerAuslSitePicker()">
+          <span class="site-picker-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </span>
+          <span class="site-picker-text" id="restlagerausl-site-picker-text">Baustelle wählen…</span>
+          <span class="site-picker-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notiz (optional)</label>
+        <textarea id="restlagerausl-note" placeholder="Anmerkung…"></textarea>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="backToRestlagerAuslList()">Abbrechen</button>
+        <button class="btn btn-primary" style="flex:2;" id="restlagerausl-save" onclick="saveRestlagerAuslagerung()" disabled>Entnehmen</button>
+      </div>
+    </div>
+  </main>
+</div>
+
 <!-- ═══════════════════ MONATSVERBRAUCH ═══════════════════ -->
 <div id="screen-inventur" class="screen">
   <header>
@@ -2467,6 +2542,11 @@ const S = {
   restmatSelSite: '',
   pendingBarcode: null,        // Code, der gerade einem Artikel zugeordnet wird
   pendingBarcodeResume: null,  // 'entnahme' | 'restmaterial' – wohin danach zurückgesprungen wird
+  // Restlager: komplett getrennte Bestandsführung für eingelagertes Restmaterial
+  // (eigene Tabelle 'restlager_bewegungen', beeinflusst NIE den normalen items.bestand)
+  restlagerBewegungen: [],
+  restlagerSelBatch: null,   // {item_id, gang, regal, boden, qty, item} – gewaehlter Posten beim Auslagern
+  restlagerAuslSelSite: '',
 };
 // Firmenstandort Jahnstraße 13, Chemnitz
 const OFFICE_LAT = 50.8288494;
@@ -2559,7 +2639,7 @@ function updateNetBadge(){
   el('home-offline').style.display = online ? 'none' : 'flex';
   updatePendingBadge();
 }
-window.addEventListener('online', ()=>{ updateNetBadge(); processOutbox(); });
+window.addEventListener('online', ()=>{ updateNetBadge(); processOutbox(); processRestlagerOutbox(); });
 window.addEventListener('offline', updateNetBadge);
 
 // ════════════════ FAB AUTO-DIM beim Scrollen ════════════════
@@ -2662,6 +2742,7 @@ window.doLogout=function(){
   S.todos=[]; S.todoShares=[]; S.todoSharedWithMe=[]; S.appUsers=[];
   S.todoSelItem=null; S.todoSelSite=''; S.gpsAtOffice=false; S.gpsLastCheck=0; S.gpsDistance=null; S.gpsError=null;
   S.stockAlerts=[];
+  S.restlagerBewegungen=[]; S.restlagerSelBatch=null; S.restlagerAuslSelSite=''; S.restmatSelSite='';
   if(S.channel){ try{ S.sb.removeChannel(S.channel); }catch(e){} S.channel=null; }
   if(S.todoChannel){ try{ S.sb.removeChannel(S.todoChannel); }catch(e){} S.todoChannel=null; }
   if(S.stockAlertsChannel){ try{ S.sb.removeChannel(S.stockAlertsChannel); }catch(e){} S.stockAlertsChannel=null; }
@@ -2812,6 +2893,7 @@ async function initAfterLogin(){
   showScreen('screen-home');
   updateNetBadge();
   processOutbox();
+  processRestlagerOutbox();
   // Vorarbeiter: Baustellen-Zuordnung im Hintergrund sicherstellen (Cache oder still nachladen)
   if(!isAdmin()){
     const cached = readForemanSitesCache(S.userEmail);
@@ -3266,6 +3348,11 @@ window.selectSite = function(name){
     S.restmatSelSite = name;
     updateRestmatSitePickerBtn();
     renderRestmatRecentSites();
+  } else if(S.sitePickerTarget === 'restlager-auslagern'){
+    S.restlagerAuslSelSite = name;
+    updateRestlagerAuslSitePickerBtn();
+    renderRestlagerAuslRecentSites();
+    refreshRestlagerAuslSaveBtnState();
   } else {
     S.selSite = name;
     updateSitePickerBtn();
@@ -3292,6 +3379,13 @@ window.openTodoAddSitePicker = function(){
 };
 window.openRestmatSitePicker = function(){
   S.sitePickerTarget = 'restmaterial';
+  el('site-picker-search').value = '';
+  renderSitePicker();
+  el('site-picker').style.display = 'flex';
+  setupSitePickerPTR();
+};
+window.openRestlagerAuslSitePicker = function(){
+  S.sitePickerTarget = 'restlager-auslagern';
   el('site-picker-search').value = '';
   renderSitePicker();
   el('site-picker').style.display = 'flex';
@@ -3406,7 +3500,10 @@ window.renderSitePicker = function(){
     list.innerHTML = '<div class="empty-state"><p>Keine Baustellen gefunden</p></div>';
     return;
   }
-  const currentSel = S.sitePickerTarget === 'todo' ? S.todoSelSite : (S.sitePickerTarget === 'restmaterial' ? S.restmatSelSite : S.selSite);
+  const currentSel = S.sitePickerTarget === 'todo' ? S.todoSelSite
+    : (S.sitePickerTarget === 'restmaterial' ? S.restmatSelSite
+    : (S.sitePickerTarget === 'restlager-auslagern' ? S.restlagerAuslSelSite
+    : S.selSite));
   list.innerHTML = filtered.map(x => `
     <button type="button" class="site-recent-card ${currentSel===x.value?'selected':''}" onclick="selectSite(${JSON.stringify(x.value).replace(/"/g,'&quot;')})">
       <span class="site-recent-icon">
@@ -3770,7 +3867,8 @@ function getOutbox(){ try{ return JSON.parse(localStorage.getItem(OUTBOX_KEY)||'
 function setOutbox(arr){ try{ localStorage.setItem(OUTBOX_KEY, JSON.stringify(arr)); }catch(e){} updatePendingBadge(); }
 function queueOutbox(rec){ const a=getOutbox(); a.push({...rec, _ts:Date.now()}); setOutbox(a); }
 function updatePendingBadge(){
-  const n=getOutbox().length; const b=el('pending-badge');
+  const n=getOutbox().length + (typeof getRestlagerOutbox==='function' ? getRestlagerOutbox().length : 0);
+  const b=el('pending-badge');
   if(!b) return;
   if(n>0){ b.style.display='inline-block'; b.textContent=n+' ausstehend'; }
   else b.style.display='none';
@@ -4602,6 +4700,75 @@ window.openRestmaterial = async function(){
   renderRestmatRecentSites();
 };
 
+// ── Restlager: eigene Tabelle, komplett getrennt von items.bestand ──
+const RESTLAGER_TABLE = 'restlager_bewegungen';
+const RESTLAGER_OUTBOX_KEY = 'lager_restlager_outbox';
+
+function getRestlagerOutbox(){ try{ return JSON.parse(localStorage.getItem(RESTLAGER_OUTBOX_KEY)||'[]'); }catch(e){ return []; } }
+function setRestlagerOutbox(arr){ try{ localStorage.setItem(RESTLAGER_OUTBOX_KEY, JSON.stringify(arr)); }catch(e){} updatePendingBadge(); }
+function queueRestlagerOutbox(rec){ const a=getRestlagerOutbox(); a.push({...rec, _ts:Date.now()}); setRestlagerOutbox(a); }
+window.processRestlagerOutbox = async function(manual){
+  let a=getRestlagerOutbox();
+  if(!a.length){ if(manual) toast('Keine ausstehenden Restlager-Buchungen',''); return; }
+  if(!navigator.onLine || !S.sb){ if(manual) toast('Keine Verbindung','err'); return; }
+  let ok=0, fail=[];
+  for(const rec of a){
+    const {_ts, ...clean}=rec;
+    try{
+      const { error } = await S.sb.from(RESTLAGER_TABLE).insert(clean);
+      if(error){ fail.push(rec); } else ok++;
+    }catch(e){ fail.push(rec); }
+  }
+  setRestlagerOutbox(fail);
+  if(ok>0){ toast('✓ '+ok+' Restlager-Buchung(en) synchronisiert','ok'); await loadRestlagerBewegungen(); }
+  else if(manual) toast('Synchronisierung fehlgeschlagen','err');
+};
+
+// Insert mit Offline-Fallback (kein self-healing nötig: es gibt keinen Bestand
+// in 'items', der beeinflusst würde – der aktuelle Restbestand wird immer
+// live aus der Summe aller Bewegungen berechnet).
+async function insertRestlagerMovement(rec){
+  if(!navigator.onLine){ queueRestlagerOutbox(rec); return {queued:true}; }
+  try{
+    const { error } = await S.sb.from(RESTLAGER_TABLE).insert(rec);
+    if(error) return {ok:false, error:error.message};
+    return {ok:true};
+  }catch(e){
+    queueRestlagerOutbox(rec); return {queued:true};
+  }
+}
+
+async function loadRestlagerBewegungen(){
+  try{
+    const { data, error } = await S.sb.from(RESTLAGER_TABLE).select('*').order('ts',{ascending:false}).limit(2000);
+    if(error) throw error;
+    S.restlagerBewegungen = data || [];
+  }catch(e){
+    console.warn('loadRestlagerBewegungen', e);
+    S.restlagerBewegungen = S.restlagerBewegungen || [];
+  }
+}
+
+// Aggregiert alle Bewegungen zu aktuell verfügbaren Posten (Artikel + genauer
+// Lagerort), gefiltert auf Menge > 0. Das ist die einzige Quelle für den
+// "Restbestand" – es gibt keine gespeicherte Summe, nur die Bewegungshistorie.
+function computeRestlagerBatches(){
+  const map = new Map();
+  (S.restlagerBewegungen||[]).forEach(r=>{
+    const key = r.item_id+'|'+r.lager_gang+'|'+r.lager_regal+'|'+r.lager_boden;
+    map.set(key, (map.get(key)||0) + Number(r.signed_qty||0));
+  });
+  const batches = [];
+  map.forEach((qty, key)=>{
+    if(qty <= 0.0001) return;
+    const [item_id, gang, regal, boden] = key.split('|');
+    const item = (S.items||[]).find(i=>String(i.id)===String(item_id));
+    batches.push({ item_id, gang:Number(gang), regal:Number(regal), boden:Number(boden), qty, item });
+  });
+  batches.sort((a,b)=> (a.item&&a.item.name||'').localeCompare(b.item&&b.item.name||'','de'));
+  return batches;
+}
+
 window.saveRestmaterial = async function(){
   const item_id = el('restmat-item-id').value;
   if(!item_id){ toast('Bitte Artikel wählen','err'); return; }
@@ -4613,25 +4780,200 @@ window.saveRestmaterial = async function(){
   const regal = el('restmat-regal').value;
   const boden = el('restmat-boden').value;
   if(!gang || !regal || !boden){ toast('Bitte Lagerort (Gang/Regal/Boden) angeben','err'); return; }
-  const noteTxt = el('restmat-note').value.trim();
-  const ortTxt = `Gang ${gang} · Regal ${regal} · Boden ${boden}`;
-  const note = noteTxt ? `${ortTxt} · ${noteTxt}` : ortTxt;
+  const note = el('restmat-note').value.trim();
   const btn = el('restmat-save'); btn.disabled=true; const o=btn.innerHTML; btn.innerHTML='<span class="spin"></span> Speichern…';
   const rec = {
-    type:'Ruecklagerung', item_id, qty:menge, signed_qty:menge, site,
+    type:'Einlagerung', item_id, qty:menge, signed_qty:menge, site,
     user_email:S.userEmail, user_name:S.userName, note,
     lager_gang: Number(gang), lager_regal: Number(regal), lager_boden: Number(boden)
   };
-  const res = await insertJournal(rec);
+  const res = await insertRestlagerMovement(rec);
   btn.disabled=false; btn.innerHTML=o;
   if(res.ok){
     toast('✓ Restmaterial eingelagert','ok');
     rememberRestmatRecentSite(site);
-    await loadItems();
     goHome();
   }else if(res.queued){
     toast('Offline – wird synchronisiert','');
     rememberRestmatRecentSite(site);
+    goHome();
+  }else{
+    toast('Fehler: '+(res.error||'unbekannt'),'err');
+  }
+};
+
+// ════════════════ RESTMATERIAL ENTNEHMEN (Auslagern aus dem Restlager) ════════════════
+const RESTLAGERAUSL_RECENT_KEY = 'lager_restlagerausl_recent_sites_v1';
+
+window.restlagerAuslQty = (function(){
+  let value = 0, max = Infinity;
+  function clamp(v){ v = Math.max(0, Math.round(Number(v)||0)); if(Number.isFinite(max) && v > max) v = max; return v; }
+  function render(){
+    const d = el('restlagerausl-menge-display'); if(d) d.textContent = String(value);
+    const hint = el('restlagerausl-menge-max');
+    if(hint){
+      const unit = (S.restlagerSelBatch && S.restlagerSelBatch.item && S.restlagerSelBatch.item.einheit) || 'Stk';
+      hint.textContent = `max ${fmtNum(max)} ${fmtEinheit(max, unit)} verfügbar`;
+      hint.style.color = (value>=max && max>0) ? '#b41c4f' : '#6b7280';
+    }
+    if(typeof refreshRestlagerAuslSaveBtnState==='function') refreshRestlagerAuslSaveBtnState();
+  }
+  return {
+    get(){ return value; },
+    set(v){ value = clamp(v); render(); },
+    add(delta){ value = clamp(value + Number(delta)); render(); },
+    setMax(m){ max = (m===null||m===undefined||!Number.isFinite(Number(m))) ? Infinity : Math.max(0, Number(m)); if(value>max) value=max; render(); },
+    getMax(){ return max; }
+  };
+})();
+
+window.refreshRestlagerAuslSaveBtnState = function(){
+  const btn = el('restlagerausl-save');
+  if(!btn) return;
+  const v = restlagerAuslQty.get();
+  const m = restlagerAuslQty.getMax();
+  const ok = v > 0 && v <= m && !!(S.restlagerAuslSelSite && S.restlagerAuslSelSite.trim());
+  btn.disabled = !ok;
+};
+
+window.updateRestlagerAuslSitePickerBtn = function(){
+  const btn = el('restlagerausl-site-picker-btn');
+  const txt = el('restlagerausl-site-picker-text');
+  if(!btn || !txt) return;
+  if(S.restlagerAuslSelSite && S.restlagerAuslSelSite.trim()){
+    btn.classList.remove('empty'); btn.classList.add('filled');
+    txt.textContent = (typeof siteLabel==='function') ? siteLabel(S.restlagerAuslSelSite) : S.restlagerAuslSelSite;
+  } else {
+    btn.classList.add('empty'); btn.classList.remove('filled');
+    txt.textContent = 'Baustelle wählen — Pflichtfeld';
+  }
+};
+
+function getRestlagerAuslRecentSites(){
+  try { return JSON.parse(localStorage.getItem(RESTLAGERAUSL_RECENT_KEY) || '[]'); } catch { return []; }
+}
+function rememberRestlagerAuslRecentSite(name){
+  if(!name) return;
+  let list = getRestlagerAuslRecentSites().filter(x => x !== name);
+  list.unshift(name); list = list.slice(0, 3);
+  try { localStorage.setItem(RESTLAGERAUSL_RECENT_KEY, JSON.stringify(list)); } catch {}
+}
+window.renderRestlagerAuslRecentSites = function(){
+  const wrap = el('restlagerausl-site-recent-wrap');
+  const list = el('restlagerausl-site-recent-list');
+  if(!wrap || !list) return;
+  const recents = getRestlagerAuslRecentSites();
+  if(!recents.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  list.innerHTML = recents.map(name => {
+    const isSel = (S.restlagerAuslSelSite === name);
+    const safe = JSON.stringify(name).replace(/"/g,'&quot;');
+    return `
+      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${safe})">
+        <span class="site-recent-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </span>
+        <span class="site-recent-name">${escapeHtml((typeof siteLabel==='function')?siteLabel(name):name)}</span>
+        ${isSel ? '<span class="site-recent-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' : ''}
+      </button>`;
+  }).join('');
+};
+
+window.openRestlagerAuslagern = async function(){
+  showScreen('screen-restlager-auslagern');
+  el('restlagerausl-step1').style.display='block';
+  el('restlagerausl-step2').style.display='none';
+  el('restlagerausl-search').value='';
+  await loadItems();
+  await loadRestlagerBewegungen();
+  renderRestlagerAuslagerList();
+};
+
+window.renderRestlagerAuslagerList = function(){
+  const q = (el('restlagerausl-search').value||'').toLowerCase().trim();
+  const list = el('restlagerausl-list');
+  let batches = computeRestlagerBatches();
+  if(q) batches = batches.filter(b => (b.item&&b.item.name||'').toLowerCase().includes(q));
+  el('restlagerausl-stats').textContent = batches.length + ' Posten verfügbar';
+  if(!batches.length){ list.innerHTML = emptyState('Kein Restmaterial eingelagert'); return; }
+  list.innerHTML = batches.map((b,idx)=>{
+    const name = (b.item&&b.item.name) || b.item_id;
+    const unit = (b.item&&b.item.einheit) || 'Stk';
+    const img = b.item&&b.item.bild_url;
+    const firstChar=(name||'?').charAt(0).toUpperCase();
+    const numCell = img ? `<img src="${escapeHtml(img)}" alt="">` : firstChar;
+    return `<div class="proj-card" data-idx="${idx}">
+      <div class="proj-num">${numCell}</div>
+      <div class="proj-info">
+        <div class="proj-name">${escapeHtml(name)}</div>
+        <div class="proj-sub">📍 Gang ${b.gang} · Regal ${b.regal} · Boden ${b.boden}</div>
+      </div>
+      <span class="pill pill-measurement_completed">${fmtNum(b.qty)} ${escapeHtml(fmtEinheit(b.qty, unit))}</span>
+    </div>`;
+  }).join('');
+  const batchesRef = batches;
+  list.querySelectorAll('.proj-card').forEach(c=>{
+    c.onclick = () => selectRestlagerBatch(batchesRef[Number(c.dataset.idx)]);
+  });
+};
+
+function selectRestlagerBatch(batch){
+  if(!batch) return;
+  S.restlagerSelBatch = batch;
+  el('restlagerausl-step1').style.display='none';
+  el('restlagerausl-step2').style.display='block';
+  restlagerAuslQty.setMax(batch.qty);
+  restlagerAuslQty.set(0);
+  const name = (batch.item&&batch.item.name) || batch.item_id;
+  const unit = (batch.item&&batch.item.einheit) || 'Stk';
+  const img = batch.item&&batch.item.bild_url;
+  const thumb = img
+    ? `<div class="sel-thumb"><img src="${escapeHtml(img)}" alt=""></div>`
+    : `<div class="sel-thumb">${escapeHtml((name||'?').charAt(0).toUpperCase())}</div>`;
+  el('restlagerausl-sel').innerHTML = `
+    <div class="proj-info">
+      <div class="proj-name">${escapeHtml(name)}</div>
+      <div class="proj-sub">📍 Gang ${batch.gang} · Regal ${batch.regal} · Boden ${batch.boden}</div>
+      <div class="stock-line" style="margin-top:6px;"><span class="pill pill-measurement_completed">${fmtNum(batch.qty)} ${escapeHtml(fmtEinheit(batch.qty, unit))} verfügbar</span></div>
+    </div>
+    ${thumb}`;
+  S.restlagerAuslSelSite = '';
+  el('restlagerausl-note').value = '';
+  updateRestlagerAuslSitePickerBtn();
+  renderRestlagerAuslRecentSites();
+  refreshRestlagerAuslSaveBtnState();
+}
+
+window.backToRestlagerAuslList = function(){
+  el('restlagerausl-step1').style.display='block';
+  el('restlagerausl-step2').style.display='none';
+  S.restlagerSelBatch = null;
+};
+
+window.saveRestlagerAuslagerung = async function(){
+  const batch = S.restlagerSelBatch;
+  if(!batch) return;
+  const menge = restlagerAuslQty.get();
+  if(!Number.isFinite(menge) || menge<=0){ toast('Bitte gültige Menge eingeben','err'); return; }
+  if(menge > batch.qty){ toast('Nur '+fmtNum(batch.qty)+' verfügbar','err'); return; }
+  const site = (S.restlagerAuslSelSite||'').trim();
+  if(!site){ toast('Bitte Baustelle wählen','err'); return; }
+  const note = el('restlagerausl-note').value.trim();
+  const btn = el('restlagerausl-save'); btn.disabled=true; const o=btn.innerHTML; btn.innerHTML='<span class="spin"></span> Speichern…';
+  const rec = {
+    type:'Auslagerung', item_id:batch.item_id, qty:menge, signed_qty:-menge, site,
+    user_email:S.userEmail, user_name:S.userName, note,
+    lager_gang: batch.gang, lager_regal: batch.regal, lager_boden: batch.boden
+  };
+  const res = await insertRestlagerMovement(rec);
+  btn.disabled=false; btn.innerHTML=o;
+  if(res.ok){
+    toast('✓ Restmaterial entnommen','ok');
+    rememberRestlagerAuslRecentSite(site);
+    goHome();
+  }else if(res.queued){
+    toast('Offline – wird synchronisiert','');
+    rememberRestlagerAuslRecentSite(site);
     goHome();
   }else{
     toast('Fehler: '+(res.error||'unbekannt'),'err');
