@@ -2036,6 +2036,12 @@
         </div>
         <svg class="picker-trigger-caret" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
+      <div class="scan-row" style="margin-top:10px;">
+        <button type="button" class="scan-btn" onclick="scanBarcodeForRestmat()" aria-label="Barcode scannen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span class="scan-btn-label">Eimer-/Produkt-Barcode scannen</span>
+        </button>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Menge (Restmenge)</label>
@@ -5685,6 +5691,19 @@ window.scanBarcodeForForm = async function(){
   }
   el('art-barcode').value = code;
   toast('✓ Code übernommen', 'ok');
+};
+
+window.scanBarcodeForRestmat = async function(){
+  const code = await openScanner({ title: 'Eimer/Produkt scannen', hint: 'Barcode am Eimer/Gebinde in den Rahmen halten.' });
+  if(!code) return;
+  const item = findItemByCode(code);
+  if(item){
+    toast('✓ ' + item.name, 'ok');
+    S.itemPickerTarget = 'restmaterial';
+    selectZugangItem(item.id);
+  }else{
+    toast('Kein Artikel zu Code: ' + code + ' – bitte Barcode in „Artikel verwalten" hinterlegen', 'err');
+  }
 };
 
 
