@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.32.2</title>
+  <title>Lagerentnahme V1.33.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -418,6 +418,10 @@
       height: 100% !important;
     }
     #qr-reader-container img { display: none !important; }
+    /* Die Bibliothek zeichnet einen eigenen Abdunkelungs-Rahmen – ausblenden,
+       da wir unseren eigenen, passend positionierten Rahmen darüberlegen. */
+    #qr-reader-container__scan_region_highlight,
+    #qr-reader-container__dashboard { display: none !important; }
     .qr-modal .qr-header {
       position: absolute; top: 0; left: 0; right: 0; z-index: 4;
       display: flex; align-items: center; gap: 12px; padding: 14px;
@@ -434,11 +438,11 @@
     .qr-modal video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; z-index: 1; }
     .qr-modal .qr-frame {
       position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-      width: 85vmin; height: 46vmin; max-width: 380px; max-height: 210px;
+      width: 85vmin; height: 46vmin;
       border: 3px solid rgba(255,255,255,0.85); border-radius: 24px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
       pointer-events: none;
-      z-index: 3;
+      z-index: 5;
     }
     .qr-modal .qr-frame::before, .qr-modal .qr-frame::after,
     .qr-modal .qr-frame > span::before, .qr-modal .qr-frame > span::after {
@@ -1518,7 +1522,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.32.2</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.33.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2520,6 +2524,7 @@
     <div class="qr-title" id="qr-title">Barcode scannen</div>
   </div>
   <div id="qr-reader-container" style="position:absolute;inset:0;"></div>
+  <div class="qr-frame" id="qr-frame"><span></span></div>
   <div class="qr-hint">
     <div class="qr-status" id="qr-status">Code mittig im Rahmen halten</div>
     <div id="qr-sub" style="opacity:.85;word-break:break-word;white-space:normal;">Funktioniert mit QR-Codes und gängigen Barcodes.</div>
@@ -6094,14 +6099,24 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     const onFailure = () => { /* "kein Code im aktuellen Bild" – feuert pro Frame, absichtlich ignoriert */ };
 
     instance.start(
-      { facingMode: 'environment' },
       {
-        fps: 10,
-        // qrbox dynamisch an die Containerbreite anpassen: breites Rechteck
-        // für 1D-Strichcodes, aber nie breiter als der sichtbare Bereich.
+        facingMode: 'environment',
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        // Dauer-Autofokus: ohne das bleibt iOS oft auf einer festen Distanz
+        // stehen, weshalb man unnötig nah rangehen muss.
+        advanced: [{ focusMode: 'continuous' }]
+      },
+      {
+        fps: 20,
+        // Großzügiger, breiter Scanbereich: je größer, desto weiter weg darf
+        // der Code sein. Breites Rechteck passend zur Form von Strichcodes.
         qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const w = Math.floor(Math.min(viewfinderWidth * 0.9, 420));
-          const h = Math.floor(Math.min(w * 0.55, viewfinderHeight * 0.5));
+          const w = Math.floor(viewfinderWidth * 0.92);
+          const h = Math.floor(Math.min(w * 0.5, viewfinderHeight * 0.45));
+          // Sichtbaren Rahmen exakt auf den tatsächlichen Scanbereich legen
+          const frame = el('qr-frame');
+          if(frame){ frame.style.width = w + 'px'; frame.style.height = h + 'px'; }
           return { width: w, height: h };
         }
       },
