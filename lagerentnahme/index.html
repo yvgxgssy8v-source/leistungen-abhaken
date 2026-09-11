@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.36.0</title>
+  <title>Lagerentnahme V1.36.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -677,6 +677,14 @@
     /* iPad Landscape / breite Screens */
     @media (min-width: 900px) {
       main { max-width: 900px; margin: 0 auto; }
+    }
+    /* Im Desktop-Ansicht-Modus (Zahnrad → Ansicht → Desktop) den Platz auf
+       breiten Monitoren komplett ausnutzen statt begrenzt zu bleiben. */
+    body.view-desktop main,
+    body.view-desktop main.main-desktop-wide {
+      max-width: none !important; margin: 0 !important; width: 100%;
+      padding-left: calc(var(--safe-left) + 32px);
+      padding-right: calc(var(--safe-right) + 32px);
     }
 
     /* Offline / Sync bar */
@@ -1584,7 +1592,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.36.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.36.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
