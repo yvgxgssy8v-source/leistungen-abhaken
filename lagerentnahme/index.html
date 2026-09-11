@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.28.0</title>
+  <title>Lagerentnahme V1.29.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.28.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.29.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2502,12 +2502,19 @@
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <div class="qr-title" id="qr-title">Barcode scannen</div>
+    <button type="button" onclick="showScannerDebugFrame()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;">Testbild</button>
   </div>
   <video id="qr-video" playsinline muted autoplay></video>
   <div class="qr-frame"><span></span></div>
   <div class="qr-hint">
     <div class="qr-status" id="qr-status">Code mittig im Rahmen halten</div>
-    <div id="qr-sub" style="opacity:.85;">Funktioniert mit QR-Codes und gängigen Barcodes.</div>
+    <div id="qr-sub" style="opacity:.85;word-break:break-word;white-space:normal;">Funktioniert mit QR-Codes und gängigen Barcodes.</div>
+  </div>
+  <div id="qr-debug-overlay" style="display:none;position:absolute;inset:0;background:#000;z-index:20;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;">
+    <div style="color:#fff;font-weight:700;font-size:16px;">So sieht der Scanner das zugeschnittene Bild:</div>
+    <img id="qr-debug-img" style="max-width:100%;max-height:60vh;border:2px solid #fff;border-radius:8px;background:#333;">
+    <div id="qr-debug-dims" style="color:#fff;font-size:13px;"></div>
+    <button type="button" onclick="hideScannerDebug()" style="background:#fff;color:#000;border:none;border-radius:12px;padding:12px 20px;font-weight:700;">Zurück zum Scanner</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -6032,6 +6039,7 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   els.title.textContent = title;
   els.sub.textContent = hint;
   els.status.textContent = 'Kamera wird gestartet …';
+  el('qr-debug-overlay').style.display = 'none';
   els.modal.classList.add('show');
   el('qr-close').onclick = () => closeScanner();
 
@@ -6163,6 +6171,23 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     _scan.raf = requestAnimationFrame(tick);
   });
 }
+
+// Zeigt genau das Bild, das gerade zugeschnitten an den Decoder ging – damit
+// wir ohne Browser-Konsole prüfen können, ob der Ausschnitt/die Bildqualität
+// überhaupt stimmt.
+window.showScannerDebugFrame = function(){
+  if(!_scan.canvas || !_scan.canvas.width){
+    toast('Noch kein Bild aufgenommen – kurz warten und erneut versuchen','err');
+    return;
+  }
+  const img = el('qr-debug-img');
+  img.src = _scan.canvas.toDataURL('image/png');
+  el('qr-debug-dims').textContent = `${_scan.canvas.width} × ${_scan.canvas.height} px`;
+  el('qr-debug-overlay').style.display = 'flex';
+};
+window.hideScannerDebug = function(){
+  el('qr-debug-overlay').style.display = 'none';
+};
 
 function closeScanner(){
   _scan.active = false;
