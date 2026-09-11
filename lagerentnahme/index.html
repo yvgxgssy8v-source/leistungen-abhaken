@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.27.0</title>
+  <title>Lagerentnahme V1.28.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.27.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.28.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6085,6 +6085,8 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   _scan.active = true;
   _scan.canvas = document.createElement('canvas');
   _scan.ctx = _scan.canvas.getContext('2d', { willReadFrequently: true });
+  _scan.frameCount = 0;
+  const baseHint = els.sub.textContent;
 
   return new Promise(resolve => {
     _scan.onResult = (value) => { resolve(value); };
@@ -6093,6 +6095,7 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
       const v = els.video;
       if(v.readyState >= 2 && v.videoWidth > 0){
         let value = null;
+        let lastStatus = 'kein Bild verarbeitet';
         try{
           // Breites Rechteck statt Quadrat zuschneiden (passend zur Form
           // normaler 1D-Strichcodes), gleiche Proportionen wie das CSS-Frame.
@@ -6112,26 +6115,35 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
             try{
               const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
               result = _scan.reader.decode(binaryBitmap);
+              lastStatus = 'kein Code gefunden (Hybrid)';
             }catch(e1){
               // 2. Versuch: GlobalHistogramBinarizer – nutzt ein anderes
               // Schwellwert-Verfahren, das bei Strichcodes (gleichmäßigere
               // Beleuchtung, feine Balken) öfter erfolgreich ist, wenn der
               // erste Versuch nichts gefunden hat.
-              const binaryBitmap2 = new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(luminanceSource));
-              result = _scan.reader.decode(binaryBitmap2);
+              try{
+                const binaryBitmap2 = new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(luminanceSource));
+                result = _scan.reader.decode(binaryBitmap2);
+                lastStatus = 'kein Code gefunden (Global)';
+              }catch(e2){
+                lastStatus = (e2 && e2.name) ? e2.name : String(e2);
+              }
             }
             if(result) value = result.getText();
           }catch(e){
-            // NotFoundException = kein Code im aktuellen Bild, völlig normal.
-            // Alles andere zur Diagnose kurz sichtbar machen (nicht dauerhaft,
-            // damit es beim normalen Scannen nicht nervt).
+            lastStatus = 'Fehler: ' + ((e && e.name) ? e.name : String(e));
             if(e && e.name && e.name !== 'NotFoundException'){
               console.warn('[scanner] decode error', e);
             }
           }
         }catch(e){
+          lastStatus = 'Frame-Fehler: ' + (e.message || e);
           console.warn('[scanner] frame error', e);
         }
+        _scan.frameCount++;
+        // Sichtbare Live-Diagnose statt nur Konsolen-Log, damit wir das ohne
+        // Zugriff auf die Browser-Konsole gemeinsam auswerten können.
+        els.sub.textContent = `Bild #${_scan.frameCount} · ${lastStatus}`;
         if(value){
           els.status.textContent = '✓ ' + value;
           if(navigator.vibrate) { try{ navigator.vibrate(60); }catch(e){} }
