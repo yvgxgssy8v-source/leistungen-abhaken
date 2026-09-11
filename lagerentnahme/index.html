@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.36.1</title>
+  <title>Lagerentnahme V1.37.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -324,55 +324,60 @@
     .view-mode-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
     /* ── Artikel verwalten: Desktop-Tabelle ── */
-    .artikel-dt-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px; }
-    table.artikel-dt { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
+    .artikel-dt-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
+    table.artikel-dt { width: 100%; border-collapse: collapse; font-size: 16px; min-width: 1200px; }
     table.artikel-dt th {
-      background: #f9fafb; color: #6b7280; font-size: 11px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.04em; text-align: left;
-      padding: 10px 8px; border-bottom: 2px solid #e5e7eb; white-space: nowrap;
-      position: sticky; top: 0;
+      background: #f9fafb; color: #374151; font-size: 14px; font-weight: 700;
+      text-align: left; padding: 16px 14px; border-bottom: 2px solid #e5e7eb;
+      white-space: nowrap; position: sticky; top: 0; z-index: 2;
     }
-    table.artikel-dt td { padding: 4px 8px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
-    table.artikel-dt tr.dirty td { background: #fffbeb; }
-    table.artikel-dt tr.new-row td { background: #ecfdf5; }
+    table.artikel-dt tbody tr { border-bottom: 1px solid #f0f1f3; }
+    table.artikel-dt tbody tr:nth-child(even) { background: #fafafa; }
+    table.artikel-dt tbody tr:hover { background: #f5f3ff; }
+    table.artikel-dt td { padding: 10px 14px; vertical-align: middle; line-height: 1.4; }
+    table.artikel-dt tr.dirty { background: #fffbeb !important; }
+    table.artikel-dt tr.new-row { background: #ecfdf5 !important; }
     table.artikel-dt input[type="text"],
     table.artikel-dt input[type="number"] {
       width: 100%; border: 1px solid transparent; background: transparent;
-      padding: 7px 6px; border-radius: 6px; font-size: 13px; color: #111827;
-      font-family: inherit;
+      padding: 10px 10px; border-radius: 8px; font-size: 16px; color: #111827;
+      font-family: inherit; line-height: 1.3;
     }
     table.artikel-dt input:focus {
       border-color: var(--primary, #9d174d); background: #fff; outline: none;
+      box-shadow: 0 0 0 3px rgba(157,23,77,0.12);
     }
-    table.artikel-dt input:hover { background: #f9fafb; }
+    table.artikel-dt input:hover { background: #eef2ff; }
     table.artikel-dt .dt-thumb {
-      width: 34px; height: 34px; border-radius: 8px; object-fit: cover;
-      background: #e5e7eb; display: block;
+      width: 52px; height: 52px; border-radius: 10px; object-fit: cover;
+      background: #e5e7eb; display: block; font-size: 18px;
     }
-    table.artikel-dt .dt-sku { color: #6b7280; font-family: monospace; font-size: 12px; }
-    table.artikel-dt .dt-check { width: 18px; height: 18px; }
+    table.artikel-dt .dt-sku { color: #6b7280; font-family: monospace; font-size: 14px; white-space: nowrap; }
+    table.artikel-dt .dt-check { width: 24px; height: 24px; cursor: pointer; }
     table.artikel-dt .dt-edit-btn {
-      border: none; background: #f3f4f6; color: #374151; border-radius: 8px;
-      padding: 6px 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+      border: 1px solid #e5e7eb; background: #fff; color: #374151; border-radius: 10px;
+      padding: 10px 16px; cursor: pointer; font-size: 14px; font-weight: 600;
       white-space: nowrap;
     }
+    table.artikel-dt .dt-edit-btn:hover { background: #f3f4f6; }
     table.artikel-dt .dt-del-btn {
-      border: none; background: #fef2f2; color: #b91c1c; border-radius: 8px;
-      padding: 6px 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin-left: 4px;
+      border: none; background: #fef2f2; color: #b91c1c; border-radius: 10px;
+      padding: 10px 14px; cursor: pointer; font-size: 14px; font-weight: 600;
     }
     .artikel-dt-savebar {
-      position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
-      background: #111827; color: #fff; padding: 12px 16px; border-radius: 12px;
-      margin-top: 12px; box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+      position: sticky; bottom: 16px; display: flex; align-items: center; gap: 16px;
+      background: #111827; color: #fff; padding: 16px 22px; border-radius: 14px;
+      margin-top: 16px; box-shadow: 0 8px 28px rgba(0,0,0,0.25); font-size: 15px;
     }
     .artikel-dt-savebar .dt-count { font-weight: 700; }
     .artikel-dt-savebar button {
       margin-left: auto; background: #fff; color: #111827; border: none;
-      border-radius: 8px; padding: 10px 18px; font-weight: 700; cursor: pointer;
+      border-radius: 10px; padding: 12px 22px; font-weight: 700; cursor: pointer;
+      font-size: 15px;
     }
     .artikel-dt-savebar .dt-discard {
       background: transparent; color: #d1d5db; margin-left: 0; text-decoration: underline;
-      padding: 10px 8px;
+      padding: 12px 10px;
     }
     .settings-logout {
       width: 100%; margin-top: 6px;
@@ -1592,7 +1597,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.36.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.37.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -5919,9 +5924,9 @@ function renderArtikelListDesktop(){
     <div class="artikel-dt-wrap">
       <table class="artikel-dt">
         <thead><tr>
-          <th></th><th>SKU</th><th>Name</th><th>Kategorie</th><th>Einheit</th>
-          <th>Bestand</th><th>EP (€)</th><th>Kostenstelle</th><th>Barcode</th>
-          <th>Kein Rest.</th><th>Aktiv</th><th></th>
+          <th>Bild</th><th>Artikelnummer</th><th>Name</th><th>Kategorie</th><th>Einheit</th>
+          <th>Bestand</th><th>Einzelpreis (€)</th><th>Kostenstelle</th><th>Barcode</th>
+          <th>Kein Restmaterial</th><th>Aktiv</th><th>Aktionen</th>
         </tr></thead>
         <tbody>${newRowsHtml}${rowsHtml}</tbody>
       </table>
@@ -5962,17 +5967,17 @@ function _artikelDtRow(item, isNew){
     <td>${skuCell}</td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="name" value="${escapeHtml(val('name',''))}" placeholder="Name"></td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="kategorie" value="${escapeHtml(val('kategorie',''))}" placeholder="–"></td>
-    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="einheit" value="${escapeHtml(val('einheit','Stk'))}" style="width:70px;"></td>
-    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="bestand" value="${escapeHtml(String(val('bestand',0)))}" style="width:80px;" step="any"></td>
-    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="unit_price" value="${escapeHtml(String(val('unit_price','')))}" style="width:80px;" step="0.01"></td>
-    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="cost_center" value="${escapeHtml(val('cost_center',''))}" style="width:110px;"></td>
-    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="barcode" value="${escapeHtml(val('barcode',''))}" style="width:130px;"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="einheit" value="${escapeHtml(val('einheit','Stk'))}" style="width:100px;"></td>
+    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="bestand" value="${escapeHtml(String(val('bestand',0)))}" style="width:110px;" step="any"></td>
+    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="unit_price" value="${escapeHtml(String(val('unit_price','')))}" style="width:110px;" step="0.01"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="cost_center" value="${escapeHtml(val('cost_center',''))}" style="width:140px;"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="barcode" value="${escapeHtml(val('barcode',''))}" style="width:170px;"></td>
     <td style="text-align:center;"><input class="dt-check" type="checkbox" data-sku="${escapeHtml(sku)}" data-field="restmaterial_ausschliessen" ${restChecked?'checked':''}></td>
     <td style="text-align:center;"><input class="dt-check" type="checkbox" data-sku="${escapeHtml(sku)}" data-field="aktiv" ${aktivChecked?'checked':''} ${isNew?'disabled':''}></td>
     <td style="white-space:nowrap;">
       ${isNew
         ? `<button class="dt-del-btn" data-del-new="${escapeHtml(sku)}">Entfernen</button>`
-        : `<button class="dt-edit-btn" data-edit-icon="${escapeHtml(sku)}" title="Ausführlich bearbeiten (inkl. Foto)">Foto/Details</button>`}
+        : `<button class="dt-edit-btn" data-edit-icon="${escapeHtml(sku)}" title="Ausführlich bearbeiten (inkl. Foto)">Foto &amp; Details</button>`}
     </td>
   </tr>`;
 }
