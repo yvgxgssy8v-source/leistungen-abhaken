@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.33.2</title>
+  <title>Lagerentnahme V1.34.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -402,20 +402,20 @@
     /* QR-Scanner Vollbild-Modal */
     .qr-modal { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; }
     .qr-modal.show { display: flex; }
-    /* html5-qrcode erzeugt Video + Hilfselemente selbst – diese müssen den
-       Container ausfüllen, sonst bleibt der Bildschirm schwarz obwohl die
-       Kamera bereits läuft. */
-    #qr-reader-container { width: 100%; height: 100%; }
+    /* html5-qrcode erzeugt Video + Hilfselemente selbst. WICHTIG: das Video
+       darf NICHT per object-fit vergrößert/beschnitten werden – die Bibliothek
+       rechnet den Scanbereich in den Layout-Pixeln des Videos. Ein gezoomtes
+       Bild führt sonst dazu, dass der real ausgewertete Bereich viel kleiner
+       ist als der sichtbare Rahmen. */
+    #qr-reader-container {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
     #qr-reader-container video {
       width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
+      height: auto !important;
       display: block !important;
-    }
-    #qr-reader-container__scan_region,
-    #qr-reader-container > div {
-      width: 100% !important;
-      height: 100% !important;
     }
     #qr-reader-container img { display: none !important; }
     /* Die Bibliothek zeichnet einen eigenen Abdunkelungs-Rahmen – ausblenden,
@@ -1522,7 +1522,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.33.2</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.34.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6105,9 +6105,20 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
       qrbox: (viewfinderWidth, viewfinderHeight) => {
         const w = Math.floor(viewfinderWidth * 0.92);
         const h = Math.floor(Math.min(w * 0.5, viewfinderHeight * 0.45));
-        // Sichtbaren Rahmen exakt auf den tatsächlichen Scanbereich legen
-        const frame = el('qr-frame');
-        if(frame){ frame.style.width = w + 'px'; frame.style.height = h + 'px'; }
+        // Sichtbaren Rahmen exakt über den tatsächlichen Scanbereich legen:
+        // Größe UND Position werden am Video ausgerichtet, nicht am Bildschirm,
+        // da das Video je nach Seitenverhältnis nicht den ganzen Screen füllt.
+        setTimeout(()=>{
+          const frame = el('qr-frame');
+          const video = document.querySelector('#qr-reader-container video');
+          if(!frame || !video) return;
+          const vr = video.getBoundingClientRect();
+          const mr = el('qr-modal').getBoundingClientRect();
+          frame.style.width = w + 'px';
+          frame.style.height = h + 'px';
+          frame.style.left = (vr.left - mr.left + vr.width/2) + 'px';
+          frame.style.top = (vr.top - mr.top + vr.height/2) + 'px';
+        }, 0);
         return { width: w, height: h };
       }
     };
