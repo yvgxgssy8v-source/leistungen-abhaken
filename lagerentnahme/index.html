@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.26.0</title>
+  <title>Lagerentnahme V1.27.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.26.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.27.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6041,6 +6041,17 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   try{
     const ZXing = await loadZXing();
     const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.CODABAR
+    ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
     _scan.reader = new ZXing.MultiFormatReader();
     _scan.reader.setHints(hints);
@@ -6054,7 +6065,7 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   try{
     _scan.stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
     });
   }catch(e){
     els.status.textContent = 'Kamera nicht erlaubt';
@@ -6096,8 +6107,19 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
             const data = _scan.ctx.getImageData(0, 0, roiW, roiH);
             const ZXing = window.ZXing;
             const luminanceSource = new ZXing.RGBLuminanceSource(data.data, roiW, roiH);
-            const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-            const result = _scan.reader.decode(binaryBitmap);
+            let result = null;
+            // 1. Versuch: HybridBinarizer (gut für die meisten Fälle, QR wie 1D)
+            try{
+              const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+              result = _scan.reader.decode(binaryBitmap);
+            }catch(e1){
+              // 2. Versuch: GlobalHistogramBinarizer – nutzt ein anderes
+              // Schwellwert-Verfahren, das bei Strichcodes (gleichmäßigere
+              // Beleuchtung, feine Balken) öfter erfolgreich ist, wenn der
+              // erste Versuch nichts gefunden hat.
+              const binaryBitmap2 = new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(luminanceSource));
+              result = _scan.reader.decode(binaryBitmap2);
+            }
             if(result) value = result.getText();
           }catch(e){
             // NotFoundException = kein Code im aktuellen Bild, völlig normal.
