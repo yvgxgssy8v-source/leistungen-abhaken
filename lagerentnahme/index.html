@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.33.0</title>
+  <title>Lagerentnahme V1.33.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1522,7 +1522,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.33.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.33.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6098,36 +6098,60 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     };
     const onFailure = () => { /* "kein Code im aktuellen Bild" – feuert pro Frame, absichtlich ignoriert */ };
 
-    instance.start(
-      {
-        facingMode: 'environment',
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        // Dauer-Autofokus: ohne das bleibt iOS oft auf einer festen Distanz
-        // stehen, weshalb man unnötig nah rangehen muss.
-        advanced: [{ focusMode: 'continuous' }]
-      },
-      {
-        fps: 20,
-        // Großzügiger, breiter Scanbereich: je größer, desto weiter weg darf
-        // der Code sein. Breites Rechteck passend zur Form von Strichcodes.
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const w = Math.floor(viewfinderWidth * 0.92);
-          const h = Math.floor(Math.min(w * 0.5, viewfinderHeight * 0.45));
-          // Sichtbaren Rahmen exakt auf den tatsächlichen Scanbereich legen
-          const frame = el('qr-frame');
-          if(frame){ frame.style.width = w + 'px'; frame.style.height = h + 'px'; }
-          return { width: w, height: h };
+    const scanConfig = {
+      fps: 20,
+      // Großzügiger, breiter Scanbereich: je größer, desto weiter weg darf
+      // der Code sein. Breites Rechteck passend zur Form von Strichcodes.
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const w = Math.floor(viewfinderWidth * 0.92);
+        const h = Math.floor(Math.min(w * 0.5, viewfinderHeight * 0.45));
+        // Sichtbaren Rahmen exakt auf den tatsächlichen Scanbereich legen
+        const frame = el('qr-frame');
+        if(frame){ frame.style.width = w + 'px'; frame.style.height = h + 'px'; }
+        return { width: w, height: h };
+      }
+    };
+
+    // Nach erfolgreichem Start versuchen, Dauer-Autofokus zu aktivieren.
+    // Schlägt das fehl (wird nicht überall unterstützt), läuft der Scanner
+    // trotzdem weiter – deshalb hier und nicht in den Start-Constraints.
+    function tryEnableContinuousFocus(){
+      try{
+        const video = document.querySelector('#qr-reader-container video');
+        const track = video && video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0];
+        if(!track || !track.getCapabilities) return;
+        const caps = track.getCapabilities();
+        if(caps.focusMode && caps.focusMode.includes('continuous')){
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(()=>{});
         }
-      },
-      onSuccess,
-      onFailure
-    ).then(() => {
-      if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
-    }).catch(e => {
-      els.status.textContent = 'Kamera nicht erlaubt';
-      els.sub.textContent = (e && e.message) ? e.message : 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
-    });
+      }catch(e){ /* optional – Scanner funktioniert auch ohne */ }
+    }
+
+    // Erst mit hoher Auflösung versuchen, bei Ablehnung schlicht neu starten.
+    const preferredConstraints = {
+      facingMode: 'environment',
+      width: { ideal: 1920 },
+      height: { ideal: 1080 }
+    };
+    const fallbackConstraints = { facingMode: 'environment' };
+
+    instance.start(preferredConstraints, scanConfig, onSuccess, onFailure)
+      .then(() => {
+        if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
+        tryEnableContinuousFocus();
+      })
+      .catch(() => {
+        // Zweiter Versuch mit minimalen Anforderungen
+        return instance.start(fallbackConstraints, scanConfig, onSuccess, onFailure)
+          .then(() => {
+            if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
+            tryEnableContinuousFocus();
+          })
+          .catch(e2 => {
+            els.status.textContent = 'Kamera nicht erlaubt';
+            els.sub.textContent = (e2 && e2.message) ? String(e2.message) : 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
+          });
+      });
   });
 }
 
