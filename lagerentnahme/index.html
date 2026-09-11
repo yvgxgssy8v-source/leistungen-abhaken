@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.35.1</title>
+  <title>Lagerentnahme V1.36.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -312,6 +312,68 @@
     .settings-panel .zoom-ctrl .zoom-val { color: #111827; flex: 1; }
     .settings-panel .zoom-ctrl .zoom-btn:hover,
     .settings-panel .zoom-ctrl .zoom-val:hover { background: #e5e7eb; }
+    .view-mode-ctrl {
+      display: flex; gap: 6px; background: #f3f4f6; border: 1px solid #e5e7eb;
+      border-radius: 10px; padding: 4px;
+    }
+    .view-mode-btn {
+      flex: 1; border: none; background: transparent; color: #6b7280;
+      font-size: 13px; font-weight: 700; padding: 8px 6px; border-radius: 8px;
+      cursor: pointer;
+    }
+    .view-mode-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* ── Artikel verwalten: Desktop-Tabelle ── */
+    .artikel-dt-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px; }
+    table.artikel-dt { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
+    table.artikel-dt th {
+      background: #f9fafb; color: #6b7280; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; text-align: left;
+      padding: 10px 8px; border-bottom: 2px solid #e5e7eb; white-space: nowrap;
+      position: sticky; top: 0;
+    }
+    table.artikel-dt td { padding: 4px 8px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    table.artikel-dt tr.dirty td { background: #fffbeb; }
+    table.artikel-dt tr.new-row td { background: #ecfdf5; }
+    table.artikel-dt input[type="text"],
+    table.artikel-dt input[type="number"] {
+      width: 100%; border: 1px solid transparent; background: transparent;
+      padding: 7px 6px; border-radius: 6px; font-size: 13px; color: #111827;
+      font-family: inherit;
+    }
+    table.artikel-dt input:focus {
+      border-color: var(--primary, #9d174d); background: #fff; outline: none;
+    }
+    table.artikel-dt input:hover { background: #f9fafb; }
+    table.artikel-dt .dt-thumb {
+      width: 34px; height: 34px; border-radius: 8px; object-fit: cover;
+      background: #e5e7eb; display: block;
+    }
+    table.artikel-dt .dt-sku { color: #6b7280; font-family: monospace; font-size: 12px; }
+    table.artikel-dt .dt-check { width: 18px; height: 18px; }
+    table.artikel-dt .dt-edit-btn {
+      border: none; background: #f3f4f6; color: #374151; border-radius: 8px;
+      padding: 6px 10px; cursor: pointer; font-size: 12px; font-weight: 600;
+      white-space: nowrap;
+    }
+    table.artikel-dt .dt-del-btn {
+      border: none; background: #fef2f2; color: #b91c1c; border-radius: 8px;
+      padding: 6px 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin-left: 4px;
+    }
+    .artikel-dt-savebar {
+      position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px;
+      background: #111827; color: #fff; padding: 12px 16px; border-radius: 12px;
+      margin-top: 12px; box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+    }
+    .artikel-dt-savebar .dt-count { font-weight: 700; }
+    .artikel-dt-savebar button {
+      margin-left: auto; background: #fff; color: #111827; border: none;
+      border-radius: 8px; padding: 10px 18px; font-weight: 700; cursor: pointer;
+    }
+    .artikel-dt-savebar .dt-discard {
+      background: transparent; color: #d1d5db; margin-left: 0; text-decoration: underline;
+      padding: 10px 8px;
+    }
     .settings-logout {
       width: 100%; margin-top: 6px;
       background: #fef2f2; color: var(--danger);
@@ -1522,7 +1584,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.35.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.36.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -1578,6 +1640,13 @@
             <button class="zoom-btn" onclick="changeZoom(-10)">−</button>
             <button class="zoom-val" id="zoom-val" onclick="changeZoom(0)">100%</button>
             <button class="zoom-btn" onclick="changeZoom(10)">+</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-label">Ansicht</div>
+          <div class="view-mode-ctrl">
+            <button class="view-mode-btn" id="view-mode-tablet" onclick="setViewMode('tablet')">Tablet</button>
+            <button class="view-mode-btn" id="view-mode-desktop" onclick="setViewMode('desktop')">Desktop</button>
           </div>
         </div>
         <div class="settings-section" id="settings-foreman-section" style="display:none;">
@@ -2721,6 +2790,29 @@ window.addEventListener('offline', updateNetBadge);
   applyZoom(getZoom());
 })();
 
+// ════════════════ ANSICHT: TABLET / DESKTOP (persistent) ════════════════
+(function(){
+  const KEY='lager_view_mode';
+  function getMode(){ try{ const v=localStorage.getItem(KEY); return v==='desktop'?'desktop':'tablet'; }catch(e){ return 'tablet'; } }
+  function applyMode(mode){
+    document.body.classList.toggle('view-desktop', mode==='desktop');
+    const bt=el('view-mode-tablet'), bd=el('view-mode-desktop');
+    if(bt) bt.classList.toggle('active', mode==='tablet');
+    if(bd) bd.classList.toggle('active', mode==='desktop');
+    S.viewMode = mode;
+  }
+  window.setViewMode=function(mode){
+    try{ localStorage.setItem(KEY, mode); }catch(e){}
+    applyMode(mode);
+    // Aktuellen Screen in der neuen Ansicht neu zeichnen, falls er eine
+    // Desktop-Variante hat (aktuell: Artikel verwalten).
+    if(S.screen === 'screen-artikel' && typeof renderArtikelList === 'function'){
+      renderArtikelList();
+    }
+  };
+  applyMode(getMode());
+})();
+
 // ════════════════ SETTINGS-PANEL ════════════════
 window.toggleSettings=function(){
   const p=el('settings-panel'), b=el('settings-btn');
@@ -2733,6 +2825,7 @@ document.addEventListener('click', e=>{
 
 // ════════════════ SCREEN-WECHSEL ════════════════
 function showScreen(id){
+  S.screen = id;
   // Realtime aufräumen beim Verlassen von Bestand/Historie
   if (S.channel){ try{ S.sb.removeChannel(S.channel); }catch(e){} S.channel=null; }
   // Todo-Realtime aufräumen wenn beide Todo-Screens verlassen werden
@@ -5766,6 +5859,7 @@ window.openArtikel=async function(){
   renderArtikelList();
 };
 window.renderArtikelList=function(){
+  if(S.viewMode === 'desktop'){ renderArtikelListDesktop(); return; }
   const q=(el('artikel-search').value||'').toLowerCase().trim();
   let items=S.items.filter(i=> !q || i.name.toLowerCase().includes(q) || (i.id||'').toLowerCase().includes(q));
   const list=el('artikel-list');
@@ -5790,6 +5884,182 @@ window.renderArtikelList=function(){
   }).join('');
   list.querySelectorAll('[data-edit]').forEach(b=> b.onclick=()=>openArtikelForm(b.dataset.edit));
 };
+
+// ════════════════ ARTIKEL VERWALTEN: DESKTOP-TABELLE ════════════════
+// Bearbeitbare Tabelle für schnelles Pflegen mehrerer Artikel auf einmal,
+// ohne für jeden einzelnen Artikel ein Formular öffnen/schließen zu müssen.
+// Änderungen werden lokal gesammelt (S._artikelDirty) und erst beim Klick auf
+// "Änderungen speichern" gemeinsam an Supabase geschickt.
+function renderArtikelListDesktop(){
+  const q=(el('artikel-search').value||'').toLowerCase().trim();
+  let items=S.items.filter(i=> !q || i.name.toLowerCase().includes(q) || (i.id||'').toLowerCase().includes(q));
+  items = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
+  const list=el('artikel-list');
+  if(!S._artikelDirty) S._artikelDirty = {};   // sku -> {field:value,...}
+  if(!S._artikelNewRows) S._artikelNewRows = []; // [{tempId, name, einheit, ...}]
+
+  const newRowsHtml = S._artikelNewRows.map(r => _artikelDtRow(r, true)).join('');
+  const rowsHtml = items.map(i => _artikelDtRow(i, false)).join('');
+  const dirtyCount = Object.keys(S._artikelDirty).length + S._artikelNewRows.length;
+
+  list.innerHTML = `
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <button class="btn btn-outline" onclick="addArtikelDesktopRow()">+ Neue Zeile</button>
+      <div style="flex:1;"></div>
+      <div style="align-self:center;color:#6b7280;font-size:13px;">${items.length} Artikel</div>
+    </div>
+    <div class="artikel-dt-wrap">
+      <table class="artikel-dt">
+        <thead><tr>
+          <th></th><th>SKU</th><th>Name</th><th>Kategorie</th><th>Einheit</th>
+          <th>Bestand</th><th>EP (€)</th><th>Kostenstelle</th><th>Barcode</th>
+          <th>Kein Rest.</th><th>Aktiv</th><th></th>
+        </tr></thead>
+        <tbody>${newRowsHtml}${rowsHtml}</tbody>
+      </table>
+    </div>
+    ${dirtyCount>0 ? `
+    <div class="artikel-dt-savebar">
+      <span class="dt-count">${dirtyCount} ungespeicherte Änderung${dirtyCount===1?'':'en'}</span>
+      <button class="dt-discard" onclick="discardArtikelDesktopChanges()">Verwerfen</button>
+      <button onclick="saveAllArtikelDesktopChanges()">Änderungen speichern</button>
+    </div>` : ''}
+  `;
+  list.querySelectorAll('[data-edit-icon]').forEach(b => b.onclick = () => openArtikelForm(b.dataset.editIcon));
+  list.querySelectorAll('[data-del-new]').forEach(b => b.onclick = () => {
+    S._artikelNewRows = S._artikelNewRows.filter(r => r.tempId !== b.dataset.delNew);
+    renderArtikelListDesktop();
+  });
+  list.querySelectorAll('input[data-sku]').forEach(inp => {
+    inp.addEventListener('input', () => _markArtikelDtDirty(inp));
+    inp.addEventListener('change', () => _markArtikelDtDirty(inp));
+  });
+}
+
+function _artikelDtRow(item, isNew){
+  const sku = isNew ? item.tempId : item.id;
+  const dirty = isNew ? {} : (S._artikelDirty[sku] || {});
+  const val = (field, fallback) => (field in dirty) ? dirty[field] : (item[field] ?? fallback ?? '');
+  const rowClass = isNew ? 'new-row' : (Object.keys(dirty).length ? 'dirty' : '');
+  const thumb = item.bild_url
+    ? `<img class="dt-thumb" src="${escapeHtml(item.bild_url)}" alt="">`
+    : `<div class="dt-thumb" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:#9ca3af;">${escapeHtml((val('name','?')||'?').charAt(0).toUpperCase())}</div>`;
+  const skuCell = isNew
+    ? `<span class="dt-sku">wird vergeben</span>`
+    : `<span class="dt-sku">${escapeHtml(sku)}</span>`;
+  const aktivChecked = isNew ? true : (item.aktiv !== false);
+  const restChecked = !!val('restmaterial_ausschliessen', false);
+  return `<tr class="${rowClass}" data-row-sku="${escapeHtml(sku)}">
+    <td>${thumb}</td>
+    <td>${skuCell}</td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="name" value="${escapeHtml(val('name',''))}" placeholder="Name"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="kategorie" value="${escapeHtml(val('kategorie',''))}" placeholder="–"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="einheit" value="${escapeHtml(val('einheit','Stk'))}" style="width:70px;"></td>
+    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="bestand" value="${escapeHtml(String(val('bestand',0)))}" style="width:80px;" step="any"></td>
+    <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="unit_price" value="${escapeHtml(String(val('unit_price','')))}" style="width:80px;" step="0.01"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="cost_center" value="${escapeHtml(val('cost_center',''))}" style="width:110px;"></td>
+    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="barcode" value="${escapeHtml(val('barcode',''))}" style="width:130px;"></td>
+    <td style="text-align:center;"><input class="dt-check" type="checkbox" data-sku="${escapeHtml(sku)}" data-field="restmaterial_ausschliessen" ${restChecked?'checked':''}></td>
+    <td style="text-align:center;"><input class="dt-check" type="checkbox" data-sku="${escapeHtml(sku)}" data-field="aktiv" ${aktivChecked?'checked':''} ${isNew?'disabled':''}></td>
+    <td style="white-space:nowrap;">
+      ${isNew
+        ? `<button class="dt-del-btn" data-del-new="${escapeHtml(sku)}">Entfernen</button>`
+        : `<button class="dt-edit-btn" data-edit-icon="${escapeHtml(sku)}" title="Ausführlich bearbeiten (inkl. Foto)">Foto/Details</button>`}
+    </td>
+  </tr>`;
+}
+
+function _markArtikelDtDirty(inputEl){
+  const sku = inputEl.dataset.sku;
+  const field = inputEl.dataset.field;
+  const value = inputEl.type === 'checkbox' ? inputEl.checked : inputEl.value;
+  const isNewRow = S._artikelNewRows.some(r => r.tempId === sku);
+  if(isNewRow){
+    const row = S._artikelNewRows.find(r => r.tempId === sku);
+    row[field] = value;
+  }else{
+    if(!S._artikelDirty[sku]) S._artikelDirty[sku] = {};
+    S._artikelDirty[sku][field] = value;
+    inputEl.closest('tr').classList.add('dirty');
+  }
+  // Sparbutton/Zähler aktualisieren, ohne die ganze Tabelle (und damit den
+  // Eingabefokus) neu zu zeichnen
+  const dirtyCount = Object.keys(S._artikelDirty).length + S._artikelNewRows.length;
+  let bar = document.querySelector('.artikel-dt-savebar');
+  if(dirtyCount>0){
+    if(!bar){
+      bar = document.createElement('div');
+      bar.className = 'artikel-dt-savebar';
+      bar.innerHTML = `<span class="dt-count"></span><button class="dt-discard" onclick="discardArtikelDesktopChanges()">Verwerfen</button><button onclick="saveAllArtikelDesktopChanges()">Änderungen speichern</button>`;
+      el('artikel-list').appendChild(bar);
+    }
+    bar.querySelector('.dt-count').textContent = `${dirtyCount} ungespeicherte Änderung${dirtyCount===1?'':'en'}`;
+  }else if(bar){ bar.remove(); }
+}
+
+window.addArtikelDesktopRow=function(){
+  const tempId = 'neu-' + Date.now();
+  S._artikelNewRows.push({ tempId, name:'', einheit:'Stk', kategorie:'', bestand:0, unit_price:'', cost_center:'', barcode:'', restmaterial_ausschliessen:false });
+  renderArtikelListDesktop();
+  const firstInput = document.querySelector(`input[data-sku="${tempId}"][data-field="name"]`);
+  if(firstInput) firstInput.focus();
+};
+
+window.discardArtikelDesktopChanges=function(){
+  S._artikelDirty = {};
+  S._artikelNewRows = [];
+  renderArtikelListDesktop();
+};
+
+window.saveAllArtikelDesktopChanges=async function(){
+  const bar = document.querySelector('.artikel-dt-savebar');
+  const saveBtn = bar && bar.querySelector('button:last-child');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'Speichert…'; }
+  let ok=0, failed=[];
+
+  // 1) Bestehende geänderte Artikel aktualisieren
+  for(const sku of Object.keys(S._artikelDirty)){
+    const changes = {...S._artikelDirty[sku]};
+    if('bestand' in changes) changes.bestand = parseNum(changes.bestand) || 0;
+    if('unit_price' in changes) changes.unit_price = changes.unit_price===''? null : (parseNum(changes.unit_price)||0);
+    if('barcode' in changes) changes.barcode = (changes.barcode||'').trim() || null;
+    try{
+      const { error } = await S.sb.from('items').update(changes).eq('id', sku);
+      if(error) throw error;
+      const local = S.items.find(i=>i.id===sku);
+      if(local) Object.assign(local, changes);
+      ok++;
+    }catch(e){ failed.push(sku + ': ' + e.message); }
+  }
+
+  // 2) Neue Zeilen anlegen
+  for(const row of S._artikelNewRows){
+    if(!row.name || !row.name.trim()){ failed.push('(neue Zeile ohne Namen übersprungen)'); continue; }
+    try{
+      const sku = await genSku();
+      const rec = {
+        id: sku, name: row.name.trim(), einheit: row.einheit||'Stk',
+        kategorie: row.kategorie||'', mindestbestand: 0,
+        bestand: parseNum(row.bestand)||0, aktiv: true,
+        unit_price: row.unit_price===''||row.unit_price==null ? null : (parseNum(row.unit_price)||0),
+        cost_center: row.cost_center || null,
+        barcode: (row.barcode||'').trim() || null,
+        restmaterial_ausschliessen: !!row.restmaterial_ausschliessen
+      };
+      const { error } = await S.sb.from('items').insert(rec);
+      if(error) throw error;
+      ok++;
+    }catch(e){ failed.push((row.name||'(unbenannt)') + ': ' + e.message); }
+  }
+
+  S._artikelDirty = {};
+  S._artikelNewRows = [];
+  await loadItems();
+  renderArtikelListDesktop();
+  if(failed.length) toast(`✓ ${ok} gespeichert, ${failed.length} fehlgeschlagen: ${failed.join(' · ')}`, 'err');
+  else toast(`✓ ${ok} Änderung${ok===1?'':'en'} gespeichert`, 'ok');
+};
+
 window.openArtikelForm=async function(id){
   el('artikel-listview').style.display='none';
   el('artikel-formview').style.display='block';
