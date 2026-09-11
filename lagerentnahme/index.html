@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.35.0</title>
+  <title>Lagerentnahme V1.35.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1522,7 +1522,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.35.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.35.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6123,32 +6123,20 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
       }
     };
 
-    // Nach erfolgreichem Start versuchen, Dauer-Autofokus und eine höhere
-    // Auflösung zu aktivieren. Schlägt eines davon fehl (wird nicht überall
-    // unterstützt), läuft der Scanner trotzdem weiter – deshalb hier und
-    // NICHT in den Start-Constraints.
+    // Nach erfolgreichem Start versuchen, Dauer-Autofokus zu aktivieren.
+    // WICHTIG: Hier NICHT die Auflösung ändern! Die Bibliothek berechnet ihren
+    // Scanbereich einmalig beim Start anhand der dann aktuellen Videogröße.
+    // Eine nachträgliche Auflösungsänderung verschiebt die interne Zuordnung,
+    // sodass ein falscher Bildbereich ausgewertet wird und gar nichts mehr
+    // erkannt wird (auch wenn der Rahmen optisch weiterhin korrekt aussieht).
     function tryImproveCamera(){
       try{
         const video = document.querySelector('#qr-reader-container video');
         const track = video && video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0];
         if(!track || !track.getCapabilities) return;
         const caps = track.getCapabilities();
-        const advanced = [];
         if(caps.focusMode && caps.focusMode.includes('continuous')){
-          advanced.push({ focusMode: 'continuous' });
-        }
-        // Höhere Auflösung = feinere Balken erkennbar = größerer Scanabstand.
-        // Nur anfordern, was die Kamera laut eigenen Angaben auch kann.
-        const wantW = caps.width && caps.width.max ? Math.min(1920, caps.width.max) : null;
-        const wantH = caps.height && caps.height.max ? Math.min(1080, caps.height.max) : null;
-        const constraints = {};
-        if(wantW) constraints.width = { ideal: wantW };
-        if(wantH) constraints.height = { ideal: wantH };
-        if(advanced.length) constraints.advanced = advanced;
-        if(Object.keys(constraints).length){
-          track.applyConstraints(constraints).catch(()=>{
-            // Fehlschlag ist unkritisch: Kamera läuft mit Standardwerten weiter
-          });
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(()=>{});
         }
       }catch(e){ /* optional – Scanner funktioniert auch ohne */ }
     }
