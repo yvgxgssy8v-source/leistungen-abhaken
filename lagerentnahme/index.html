@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.32.1</title>
+  <title>Lagerentnahme V1.32.2</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -402,6 +402,22 @@
     /* QR-Scanner Vollbild-Modal */
     .qr-modal { position: fixed; inset: 0; background: #000; z-index: 9999; display: none; flex-direction: column; }
     .qr-modal.show { display: flex; }
+    /* html5-qrcode erzeugt Video + Hilfselemente selbst – diese müssen den
+       Container ausfüllen, sonst bleibt der Bildschirm schwarz obwohl die
+       Kamera bereits läuft. */
+    #qr-reader-container { width: 100%; height: 100%; }
+    #qr-reader-container video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      display: block !important;
+    }
+    #qr-reader-container__scan_region,
+    #qr-reader-container > div {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    #qr-reader-container img { display: none !important; }
     .qr-modal .qr-header {
       position: absolute; top: 0; left: 0; right: 0; z-index: 4;
       display: flex; align-items: center; gap: 12px; padding: 14px;
@@ -1502,7 +1518,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.32.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.32.2</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6079,7 +6095,16 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
 
     instance.start(
       { facingMode: 'environment' },
-      { fps: 12, qrbox: { width: 300, height: 170 }, aspectRatio: 1.7777 },
+      {
+        fps: 10,
+        // qrbox dynamisch an die Containerbreite anpassen: breites Rechteck
+        // für 1D-Strichcodes, aber nie breiter als der sichtbare Bereich.
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const w = Math.floor(Math.min(viewfinderWidth * 0.9, 420));
+          const h = Math.floor(Math.min(w * 0.55, viewfinderHeight * 0.5));
+          return { width: w, height: h };
+        }
+      },
       onSuccess,
       onFailure
     ).then(() => {
