@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.38.0</title>
+  <title>Lagerentnahme V1.39.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -379,6 +379,51 @@
       background: transparent; color: #d1d5db; margin-left: 0; text-decoration: underline;
       padding: 12px 10px;
     }
+    .artikel-dt-bulkbar {
+      position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 14px;
+      background: #eef2ff; color: #312e81; padding: 12px 18px; border-radius: 12px;
+      margin-bottom: 12px; font-size: 15px; border: 1px solid #c7d2fe;
+    }
+    .artikel-dt-bulkbar button {
+      background: #fff; border: 1px solid #c7d2fe; color: #312e81; border-radius: 8px;
+      padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 14px;
+    }
+    .artikel-dt-bulkbar button:hover { background: #e0e7ff; }
+    .artikel-dt-bulkbar .dt-clear { margin-left: auto; background: transparent; border: none; text-decoration: underline; }
+    table.artikel-dt th .dt-th-btn {
+      display: flex; align-items: center; gap: 6px; background: transparent; border: none;
+      color: inherit; font: inherit; font-weight: 700; cursor: pointer; padding: 0;
+      white-space: nowrap;
+    }
+    table.artikel-dt th .dt-th-btn:hover { color: #9d174d; }
+    table.artikel-dt th .dt-th-caret { opacity: .5; font-size: 10px; }
+    table.artikel-dt th.dt-th-active .dt-th-caret { opacity: 1; color: #9d174d; }
+    table.artikel-dt th.dt-th-filtered .dt-th-btn { color: #9d174d; }
+    .dt-check-col { width: 40px; text-align: center; }
+    .dt-select-check { width: 20px; height: 20px; cursor: pointer; }
+    .artikel-dt-popover {
+      position: absolute; z-index: 30; background: #fff; border: 1px solid #e5e7eb;
+      border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); padding: 10px;
+      min-width: 220px; max-height: 320px; overflow-y: auto; display: none;
+    }
+    .artikel-dt-popover.show { display: block; }
+    .artikel-dt-popover .dt-pop-sort {
+      display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px;
+      cursor: pointer; font-size: 14px; color: #111827;
+    }
+    .artikel-dt-popover .dt-pop-sort:hover { background: #f3f4f6; }
+    .artikel-dt-popover .dt-pop-divider { height: 1px; background: #f0f1f3; margin: 6px 0; }
+    .artikel-dt-popover .dt-pop-check-row {
+      display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px;
+      font-size: 14px; color: #111827; cursor: pointer;
+    }
+    .artikel-dt-popover .dt-pop-check-row:hover { background: #f3f4f6; }
+    .artikel-dt-popover .dt-pop-actions { display: flex; gap: 8px; margin-top: 8px; padding: 0 10px; }
+    .artikel-dt-popover .dt-pop-actions button {
+      flex: 1; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .artikel-dt-popover .dt-pop-apply { background: #9d174d; color: #fff; border: none; }
+    .artikel-dt-popover .dt-pop-clear { background: #f3f4f6; color: #374151; border: none; }
     .settings-logout {
       width: 100%; margin-top: 6px;
       background: #fef2f2; color: var(--danger);
@@ -1597,7 +1642,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.38.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.39.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -5928,17 +5973,165 @@ window.renderArtikelList=function(){
 // ohne für jeden einzelnen Artikel ein Formular öffnen/schließen zu müssen.
 // Änderungen werden lokal gesammelt (S._artikelDirty) und erst beim Klick auf
 // "Änderungen speichern" gemeinsam an Supabase geschickt.
+// Spalten-Konfiguration für Sortier-/Filter-Dropdowns im Kopf jeder Spalte.
+const ARTIKEL_DT_COLS = [
+  { field:'id',        label:'Artikelnummer',     filterable:false },
+  { field:'name',      label:'Name',              filterable:false },
+  { field:'kategorie', label:'Kategorie',         filterable:true  },
+  { field:'einheit',   label:'Einheit',           filterable:true  },
+  { field:'bestand',   label:'Bestand',           filterable:false, numeric:true },
+  { field:'unit_price',label:'Einzelpreis (€)',   filterable:false, numeric:true },
+  { field:'cost_center',label:'Kostenstelle',     filterable:true  },
+  { field:'barcode',   label:'Barcode',           filterable:false },
+  { field:'restmaterial_ausschliessen', label:'Kein Restmaterial', filterable:true, boolean:true },
+  { field:'aktiv',     label:'Aktiv',             filterable:true, boolean:true },
+];
+
+function _artikelDtHeaderCell(col){
+  const isSorted = S._artikelSort && S._artikelSort.field === col.field;
+  const isFiltered = S._artikelFilters[col.field] != null;
+  const caret = isSorted ? (S._artikelSort.dir === 'asc' ? '▲' : '▼') : '▾';
+  const thClasses = [isSorted?'dt-th-active':'', isFiltered?'dt-th-filtered':''].filter(Boolean).join(' ');
+  return `<th class="${thClasses}">
+    <button type="button" class="dt-th-btn" data-col-menu="${col.field}">${escapeHtml(col.label)} <span class="dt-th-caret">${caret}</span></button>
+  </th>`;
+}
+
+function _artikelDtDistinctValues(field){
+  const set = new Set();
+  (S.items||[]).forEach(i => {
+    let v = i[field];
+    if(field==='restmaterial_ausschliessen' || field==='aktiv'){
+      v = field==='aktiv' ? (i.aktiv!==false) : !!i.restmaterial_ausschliessen;
+    }
+    set.add(v);
+  });
+  return Array.from(set);
+}
+
+window.openArtikelColMenu = function(field, btnEl){
+  const existing = document.getElementById('artikel-dt-popover');
+  const wasOpenForSameField = existing && existing.classList.contains('show') && existing.dataset.field === field;
+  closeArtikelColMenu();
+  if(wasOpenForSameField) return; // Toggle: erneuter Klick auf dieselbe Spalte schließt nur
+
+  const col = ARTIKEL_DT_COLS.find(c => c.field === field);
+  if(!col) return;
+  let pop = document.getElementById('artikel-dt-popover');
+  if(!pop){
+    pop = document.createElement('div');
+    pop.id = 'artikel-dt-popover';
+    pop.className = 'artikel-dt-popover';
+    document.body.appendChild(pop);
+  }
+  pop.dataset.field = field;
+
+  let html = `
+    <div class="dt-pop-sort" onclick="applyArtikelSort('${field}','asc')">↑ Aufsteigend sortieren</div>
+    <div class="dt-pop-sort" onclick="applyArtikelSort('${field}','desc')">↓ Absteigend sortieren</div>
+  `;
+  if(col.filterable){
+    const current = S._artikelFilters[field]; // Set|null
+    const values = _artikelDtDistinctValues(field);
+    const labelFor = v => {
+      if(col.boolean) return v ? 'Ja' : 'Nein';
+      return (v===''||v==null) ? '(leer)' : String(v);
+    };
+    values.sort((a,b)=> labelFor(a).localeCompare(labelFor(b),'de'));
+    html += `<div class="dt-pop-divider"></div>`;
+    html += values.map(v => {
+      const checked = !current || current.has(v);
+      const vEnc = encodeURIComponent(JSON.stringify(v));
+      return `<label class="dt-pop-check-row"><input type="checkbox" class="dt-pop-val" data-v="${vEnc}" ${checked?'checked':''}> ${escapeHtml(labelFor(v))}</label>`;
+    }).join('');
+    html += `<div class="dt-pop-actions">
+      <button class="dt-pop-clear" onclick="clearArtikelFilter('${field}')">Zurücksetzen</button>
+      <button class="dt-pop-apply" onclick="applyArtikelFilterChecklist('${field}')">Übernehmen</button>
+    </div>`;
+  }
+  pop.innerHTML = html;
+
+  const r = btnEl.getBoundingClientRect();
+  pop.style.left = (r.left + window.scrollX) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+  pop.classList.add('show');
+};
+window.closeArtikelColMenu = function(){
+  const pop = document.getElementById('artikel-dt-popover');
+  if(pop) pop.classList.remove('show');
+};
+document.addEventListener('click', e => {
+  const pop = document.getElementById('artikel-dt-popover');
+  if(!pop || !pop.classList.contains('show')) return;
+  if(pop.contains(e.target) || e.target.closest('[data-col-menu]')) return;
+  closeArtikelColMenu();
+});
+
+window.applyArtikelSort = function(field, dir){
+  S._artikelSort = { field, dir };
+  closeArtikelColMenu();
+  renderArtikelListDesktop();
+};
+window.applyArtikelFilterChecklist = function(field){
+  const pop = document.getElementById('artikel-dt-popover');
+  const boxes = pop.querySelectorAll('.dt-pop-val');
+  const all = boxes.length;
+  const selected = new Set();
+  boxes.forEach(b => { if(b.checked) selected.add(JSON.parse(decodeURIComponent(b.dataset.v))); });
+  S._artikelFilters[field] = (selected.size === all) ? null : selected;
+  closeArtikelColMenu();
+  renderArtikelListDesktop();
+};
+window.clearArtikelFilter = function(field){
+  S._artikelFilters[field] = null;
+  closeArtikelColMenu();
+  renderArtikelListDesktop();
+};
+
 function renderArtikelListDesktop(){
   const q=(el('artikel-search').value||'').toLowerCase().trim();
-  let items=S.items.filter(i=> !q || i.name.toLowerCase().includes(q) || (i.id||'').toLowerCase().includes(q));
-  items = items.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','de'));
-  const list=el('artikel-list');
-  if(!S._artikelDirty) S._artikelDirty = {};   // sku -> {field:value,...}
-  if(!S._artikelNewRows) S._artikelNewRows = []; // [{tempId, name, einheit, ...}]
+  if(!S._artikelDirty) S._artikelDirty = {};      // sku -> {field:value,...}
+  if(!S._artikelNewRows) S._artikelNewRows = [];  // [{tempId, name, einheit, ...}]
+  if(!S._artikelFilters) S._artikelFilters = {};  // field -> Set(erlaubte Werte) | null
+  if(!S._artikelSelected) S._artikelSelected = new Set();
+  if(S._artikelSort === undefined) S._artikelSort = null;
 
+  let items=S.items.filter(i=> !q || i.name.toLowerCase().includes(q) || (i.id||'').toLowerCase().includes(q));
+  // Spalten-Filter anwenden
+  Object.keys(S._artikelFilters).forEach(field => {
+    const allowed = S._artikelFilters[field];
+    if(!allowed) return;
+    items = items.filter(i => {
+      let v = i[field];
+      if(field==='aktiv') v = i.aktiv !== false;
+      if(field==='restmaterial_ausschliessen') v = !!i.restmaterial_ausschliessen;
+      return allowed.has(v);
+    });
+  });
+  // Sortierung anwenden (Standard: Name aufsteigend)
+  const sortField = (S._artikelSort && S._artikelSort.field) || 'name';
+  const sortDir = (S._artikelSort && S._artikelSort.dir) || 'asc';
+  const col = ARTIKEL_DT_COLS.find(c=>c.field===sortField);
+  items = items.slice().sort((a,b)=>{
+    let av = a[sortField], bv = b[sortField];
+    if(sortField==='aktiv'){ av=a.aktiv!==false; bv=b.aktiv!==false; }
+    if(sortField==='restmaterial_ausschliessen'){ av=!!a.restmaterial_ausschliessen; bv=!!b.restmaterial_ausschliessen; }
+    let cmp;
+    if(col && col.numeric){ cmp = (Number(av)||0) - (Number(bv)||0); }
+    else if(col && col.boolean){ cmp = (av===bv)?0:(av?1:-1); }
+    else { cmp = String(av??'').localeCompare(String(bv??''), 'de'); }
+    return sortDir==='desc' ? -cmp : cmp;
+  });
+
+  const list=el('artikel-list');
   const newRowsHtml = S._artikelNewRows.map(r => _artikelDtRow(r, true)).join('');
   const rowsHtml = items.map(i => _artikelDtRow(i, false)).join('');
   const dirtyCount = Object.keys(S._artikelDirty).length + S._artikelNewRows.length;
+  const selCount = S._artikelSelected.size;
+  const visibleSkus = items.map(i=>i.id);
+  const allVisibleSelected = visibleSkus.length>0 && visibleSkus.every(sku=>S._artikelSelected.has(sku));
+
+  const headerCells = ARTIKEL_DT_COLS.map(_artikelDtHeaderCell).join('');
 
   list.innerHTML = `
     <div style="display:flex;gap:10px;margin-bottom:10px;">
@@ -5946,12 +6139,22 @@ function renderArtikelListDesktop(){
       <div style="flex:1;"></div>
       <div style="align-self:center;color:#6b7280;font-size:13px;">${items.length} Artikel</div>
     </div>
+    ${selCount>0 ? `
+    <div class="artikel-dt-bulkbar">
+      <span><strong>${selCount}</strong> ausgewählt</span>
+      <button onclick="bulkArtikelSetAktiv(true)">Aktivieren</button>
+      <button onclick="bulkArtikelSetAktiv(false)">Deaktivieren</button>
+      <button onclick="bulkArtikelSetRest(true)">Als „Kein Restmaterial" markieren</button>
+      <button onclick="bulkArtikelSetRest(false)">„Kein Restmaterial" aufheben</button>
+      <button class="dt-clear" onclick="clearArtikelSelection()">Auswahl aufheben</button>
+    </div>` : ''}
     <div class="artikel-dt-wrap">
       <table class="artikel-dt">
         <thead><tr>
-          <th>Bild</th><th>Artikelnummer</th><th>Name</th><th>Kategorie</th><th>Einheit</th>
-          <th>Bestand</th><th>Einzelpreis (€)</th><th>Kostenstelle</th><th>Barcode</th>
-          <th>Kein Restmaterial</th><th>Aktiv</th><th>Aktionen</th>
+          <th class="dt-check-col"><input type="checkbox" class="dt-select-check" id="artikel-dt-select-all" ${allVisibleSelected?'checked':''} onchange="toggleArtikelSelectAll(this)"></th>
+          <th>Bild</th>
+          ${headerCells}
+          <th>Aktionen</th>
         </tr></thead>
         <tbody>${newRowsHtml}${rowsHtml}</tbody>
       </table>
@@ -5963,6 +6166,7 @@ function renderArtikelListDesktop(){
       <button onclick="saveAllArtikelDesktopChanges()">Änderungen speichern</button>
     </div>` : ''}
   `;
+  list.querySelectorAll('[data-col-menu]').forEach(b => b.onclick = (e) => { e.stopPropagation(); openArtikelColMenu(b.dataset.colMenu, b); });
   list.querySelectorAll('[data-edit-icon]').forEach(b => b.onclick = () => openArtikelForm(b.dataset.editIcon));
   list.querySelectorAll('[data-del-new]').forEach(b => b.onclick = () => {
     S._artikelNewRows = S._artikelNewRows.filter(r => r.tempId !== b.dataset.delNew);
@@ -5972,7 +6176,66 @@ function renderArtikelListDesktop(){
     inp.addEventListener('input', () => _markArtikelDtDirty(inp));
     inp.addEventListener('change', () => _markArtikelDtDirty(inp));
   });
+  list.querySelectorAll('[data-select-sku]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const sku = cb.dataset.selectSku;
+      if(cb.checked) S._artikelSelected.add(sku); else S._artikelSelected.delete(sku);
+      renderArtikelListDesktop();
+    });
+  });
 }
+
+window.toggleArtikelSelectAll = function(checkboxEl){
+  const q=(el('artikel-search').value||'').toLowerCase().trim();
+  let items=S.items.filter(i=> !q || i.name.toLowerCase().includes(q) || (i.id||'').toLowerCase().includes(q));
+  Object.keys(S._artikelFilters||{}).forEach(field => {
+    const allowed = S._artikelFilters[field];
+    if(!allowed) return;
+    items = items.filter(i => {
+      let v = i[field];
+      if(field==='aktiv') v = i.aktiv !== false;
+      if(field==='restmaterial_ausschliessen') v = !!i.restmaterial_ausschliessen;
+      return allowed.has(v);
+    });
+  });
+  if(checkboxEl.checked){ items.forEach(i => S._artikelSelected.add(i.id)); }
+  else { items.forEach(i => S._artikelSelected.delete(i.id)); }
+  renderArtikelListDesktop();
+};
+window.clearArtikelSelection = function(){
+  S._artikelSelected.clear();
+  renderArtikelListDesktop();
+};
+window.bulkArtikelSetAktiv = async function(value){
+  const skus = Array.from(S._artikelSelected);
+  if(!skus.length) return;
+  let ok=0, failed=0;
+  for(const sku of skus){
+    try{
+      const { error } = await S.sb.from('items').update({ aktiv: value }).eq('id', sku);
+      if(error) throw error;
+      const local = S.items.find(i=>i.id===sku); if(local) local.aktiv = value;
+      ok++;
+    }catch(e){ failed++; }
+  }
+  toast(failed ? `✓ ${ok} aktualisiert, ${failed} fehlgeschlagen` : `✓ ${ok} Artikel ${value?'aktiviert':'deaktiviert'}`, failed?'err':'ok');
+  renderArtikelListDesktop();
+};
+window.bulkArtikelSetRest = async function(value){
+  const skus = Array.from(S._artikelSelected);
+  if(!skus.length) return;
+  let ok=0, failed=0;
+  for(const sku of skus){
+    try{
+      const { error } = await S.sb.from('items').update({ restmaterial_ausschliessen: value }).eq('id', sku);
+      if(error) throw error;
+      const local = S.items.find(i=>i.id===sku); if(local) local.restmaterial_ausschliessen = value;
+      ok++;
+    }catch(e){ failed++; }
+  }
+  toast(failed ? `✓ ${ok} aktualisiert, ${failed} fehlgeschlagen` : `✓ ${ok} Artikel markiert`, failed?'err':'ok');
+  renderArtikelListDesktop();
+};
 
 function _artikelDtRow(item, isNew){
   const sku = isNew ? item.tempId : item.id;
@@ -5987,7 +6250,9 @@ function _artikelDtRow(item, isNew){
     : `<span class="dt-sku">${escapeHtml(sku)}</span>`;
   const aktivChecked = isNew ? true : (item.aktiv !== false);
   const restChecked = !!val('restmaterial_ausschliessen', false);
+  const isSelected = !isNew && S._artikelSelected.has(sku);
   return `<tr class="${rowClass}" data-row-sku="${escapeHtml(sku)}">
+    <td class="dt-check-col">${isNew ? '' : `<input type="checkbox" class="dt-select-check" data-select-sku="${escapeHtml(sku)}" ${isSelected?'checked':''}>`}</td>
     <td>${thumb}</td>
     <td>${skuCell}</td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="name" value="${escapeHtml(val('name',''))}" placeholder="Name"></td>
