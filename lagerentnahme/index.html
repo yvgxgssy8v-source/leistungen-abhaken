@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.33.1</title>
+  <title>Lagerentnahme V1.33.2</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1522,7 +1522,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.33.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.33.2</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6099,7 +6099,7 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     const onFailure = () => { /* "kein Code im aktuellen Bild" – feuert pro Frame, absichtlich ignoriert */ };
 
     const scanConfig = {
-      fps: 20,
+      fps: 15,
       // Großzügiger, breiter Scanbereich: je größer, desto weiter weg darf
       // der Code sein. Breites Rechteck passend zur Form von Strichcodes.
       qrbox: (viewfinderWidth, viewfinderHeight) => {
@@ -6127,30 +6127,17 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
       }catch(e){ /* optional – Scanner funktioniert auch ohne */ }
     }
 
-    // Erst mit hoher Auflösung versuchen, bei Ablehnung schlicht neu starten.
-    const preferredConstraints = {
-      facingMode: 'environment',
-      width: { ideal: 1920 },
-      height: { ideal: 1080 }
-    };
-    const fallbackConstraints = { facingMode: 'environment' };
-
-    instance.start(preferredConstraints, scanConfig, onSuccess, onFailure)
+    // Bewusst EIN einziger Startversuch mit einfachen Anforderungen: ein
+    // zweiter Start nach einem fehlgeschlagenen ersten hinterlässt die
+    // Bibliothek in einem halbfertigen Zustand und bleibt dann hängen.
+    instance.start({ facingMode: 'environment' }, scanConfig, onSuccess, onFailure)
       .then(() => {
         if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
         tryEnableContinuousFocus();
       })
-      .catch(() => {
-        // Zweiter Versuch mit minimalen Anforderungen
-        return instance.start(fallbackConstraints, scanConfig, onSuccess, onFailure)
-          .then(() => {
-            if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
-            tryEnableContinuousFocus();
-          })
-          .catch(e2 => {
-            els.status.textContent = 'Kamera nicht erlaubt';
-            els.sub.textContent = (e2 && e2.message) ? String(e2.message) : 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
-          });
+      .catch(e => {
+        els.status.textContent = 'Kamera konnte nicht gestartet werden';
+        els.sub.textContent = (e && e.message) ? String(e.message) : 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
       });
   });
 }
