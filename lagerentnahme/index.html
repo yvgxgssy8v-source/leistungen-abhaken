@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.30.0</title>
+  <title>Lagerentnahme V1.31.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.30.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.31.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6053,7 +6053,11 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     // Weiche wollen wir umgehen) bauen wir uns die einzelnen, spezialisierten
     // Reader direkt und probieren sie im Bild nacheinander selbst durch.
     const specificReaders = [];
-    const tryAdd = (name, factory) => { try{ specificReaders.push({ name, reader: factory() }); }catch(e){ console.warn('[scanner] Reader nicht verfügbar:', name, e); } };
+    const failedReaders = [];
+    const tryAdd = (name, factory) => {
+      try{ specificReaders.push({ name, reader: factory() }); }
+      catch(e){ failedReaders.push(name + ': ' + (e && e.message ? e.message : e)); }
+    };
     tryAdd('EAN13', () => new ZXing.EAN13Reader());
     tryAdd('EAN8', () => new ZXing.EAN8Reader());
     tryAdd('UPCA', () => new ZXing.UPCAReader());
@@ -6065,6 +6069,13 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
     tryAdd('QR', () => new ZXing.QRCodeReader());
     if(!specificReaders.length) throw new Error('Keine Format-Reader verfügbar');
     _scan.readers = specificReaders;
+    _scan.failedReaderNames = failedReaders;
+    if(failedReaders.length){
+      // Sichtbar machen, welche Reader-Klassen nicht existieren/fehlschlagen –
+      // bleibt ein paar Sekunden stehen, bevor der Frame-Zähler alles überschreibt.
+      console.warn('[scanner] Reader fehlgeschlagen:', failedReaders);
+      toast('Fehlende Reader (' + failedReaders.length + '): ' + failedReaders.join(' · '), 'err');
+    }
   }catch(e){
     els.status.textContent = 'Scanner nicht verfügbar';
     els.sub.textContent = e.message || String(e);
@@ -6187,7 +6198,12 @@ window.showScannerDebugFrame = function(){
   }
   const img = el('qr-debug-img');
   img.src = _scan.canvas.toDataURL('image/png');
-  el('qr-debug-dims').textContent = `${_scan.canvas.width} × ${_scan.canvas.height} px`;
+  const dimsEl = el('qr-debug-dims');
+  let info = `${_scan.canvas.width} × ${_scan.canvas.height} px`;
+  if(_scan.readers) info += ` · ${_scan.readers.length} Reader aktiv (${_scan.readers.map(r=>r.name).join(', ')})`;
+  if(_scan.failedReaderNames && _scan.failedReaderNames.length) info += `\n⚠️ Fehlgeschlagen: ${_scan.failedReaderNames.join(' · ')}`;
+  dimsEl.textContent = info;
+  dimsEl.style.whiteSpace = 'pre-line';
   el('qr-debug-overlay').style.display = 'flex';
 };
 window.hideScannerDebug = function(){
