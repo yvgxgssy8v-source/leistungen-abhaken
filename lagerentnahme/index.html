@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.37.0</title>
+  <title>Lagerentnahme V1.38.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1597,7 +1597,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.37.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.38.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -1741,7 +1741,7 @@
 <!-- ═══════════════════ ENTNAHME ═══════════════════ -->
 <div id="screen-entnahme" class="screen">
   <header>
-    <button class="back-btn" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
+    <button class="back-btn" onclick="backEntnahmeHeader()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
     <h1 style="font-size:var(--fs-lg);">Mitnehmen</h1>
     <div class="spacer"></div>
     <span id="net-badge2" class="badge online">online</span>
@@ -1886,7 +1886,7 @@
 <!-- ═══════════════════ TO-DO: ARTIKEL HINZUFÜGEN ═══════════════════ -->
 <div id="screen-todo-add" class="screen">
   <header>
-    <button class="back-btn" onclick="openTodos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
+    <button class="back-btn" onclick="backTodoAddHeader()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
     <h1 style="font-size:var(--fs-lg);">Zur Liste hinzufügen</h1>
     <div class="spacer"></div>
   </header>
@@ -2193,7 +2193,7 @@
 <!-- ═══════════════════ RESTMATERIAL ENTNEHMEN (Auslagern) ═══════════════════ -->
 <div id="screen-restlager-auslagern" class="screen">
   <header>
-    <button class="back-btn" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
+    <button class="back-btn" onclick="backRestlagerAuslHeader()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
     <h1 style="font-size:var(--fs-lg);">Restmaterial entnehmen</h1>
     <div class="spacer"></div>
   </header>
@@ -2315,7 +2315,7 @@
 <!-- ═══════════════════ ARTIKEL VERWALTEN ═══════════════════ -->
 <div id="screen-artikel" class="screen">
   <header>
-    <button class="back-btn" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
+    <button class="back-btn" onclick="backArtikelHeader()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
     <h1 style="font-size:var(--fs-lg);">Artikel verwalten</h1>
     <div class="spacer"></div>
   </header>
@@ -2675,6 +2675,31 @@ const OFFICE_RADIUS_M = 200;
 
 // kurzer Helfer
 const el = id => document.getElementById(id);
+
+// ════════════════ KONTEXT-ABHÄNGIGE "ZURÜCK"-BUTTONS ════════════════
+// Diese Screens haben intern mehrere Schritte/Ansichten (Step1/Step2 oder
+// Liste/Formular). Der Zurück-Button oben soll dann erst zum vorherigen
+// Schritt im selben Screen zurückgehen, statt sofort ins Hauptmenü zu springen.
+window.backEntnahmeHeader = function(){
+  const s2 = el('entnahme-step2');
+  if(s2 && s2.style.display !== 'none') backToEntnahmeList();
+  else goHome();
+};
+window.backTodoAddHeader = function(){
+  const s2 = el('todoadd-step2');
+  if(s2 && s2.style.display !== 'none') backToTodoAddList();
+  else openTodos();
+};
+window.backRestlagerAuslHeader = function(){
+  const s2 = el('restlagerausl-step2');
+  if(s2 && s2.style.display !== 'none') backToRestlagerAuslList();
+  else goHome();
+};
+window.backArtikelHeader = function(){
+  const fv = el('artikel-formview');
+  if(fv && fv.style.display !== 'none') closeArtikelForm();
+  else goHome();
+};
 function isAdmin(){ return S.role === 'admin'; }
 
 // ════════════════ TOAST ════════════════
