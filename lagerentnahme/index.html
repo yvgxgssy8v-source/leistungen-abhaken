@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.24.0</title>
+  <title>Lagerentnahme V1.25.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.24.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.25.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2744,7 +2744,7 @@ window.doLogin=async function(){
     const data=await res.json();
     if(!data.token) throw new Error('Kein Token erhalten.');
     S.token=data.token; S.userEmail=email;
-    try{ localStorage.setItem('bauplan_token',data.token); localStorage.setItem('bauplan_email',email); }catch(e){}
+    try{ localStorage.setItem('bauplan_token',data.token); localStorage.setItem('bauplan_email',email); localStorage.setItem('lager_remembered_email',email); }catch(e){}
     await initAfterLogin();
   }catch(e){
     errBox.textContent=e.message||'Anmeldung fehlgeschlagen.'; errBox.classList.add('show');
@@ -2766,10 +2766,12 @@ window.doLogout=function(){
   if(S.stockAlertsChannel){ try{ S.sb.removeChannel(S.stockAlertsChannel); }catch(e){} S.stockAlertsChannel=null; }
   document.body.classList.remove('is-admin');
   el('settings-panel').classList.remove('show');
-  // Eingabefelder leeren, damit nächster Nutzer nicht alte Mail sieht
-  try{ el('inp-email').value=''; el('inp-pw').value=''; el('login-error').textContent=''; }catch(e){}
+  // Passwort leeren, aber die zuletzt genutzte E-Mail zur Bequemlichkeit stehen lassen
+  let rememberedEmail = '';
+  try{ rememberedEmail = localStorage.getItem('lager_remembered_email') || ''; }catch(e){}
+  try{ el('inp-email').value=rememberedEmail; el('inp-pw').value=''; el('login-error').textContent=''; }catch(e){}
   showScreen('screen-login');
-  setTimeout(()=>{ try{ el('inp-email').focus(); }catch(e){} }, 50);
+  setTimeout(()=>{ try{ el('inp-pw').focus(); }catch(e){} }, 50);
 };
 
 // Supabase-Client mit x-bauplan-user-Header erstellen
@@ -2785,10 +2787,12 @@ async function checkSession(){
   let token, email;
   try{ token=localStorage.getItem('bauplan_token'); email=localStorage.getItem('bauplan_email'); }catch(e){}
   if(!token || !email){
-    // Kein Auto-Login → Login-Maske zeigen, Felder sauber
-    try{ el('inp-email').value=''; el('inp-pw').value=''; }catch(e){}
+    // Kein Auto-Login → Login-Maske zeigen, zuletzt genutzte E-Mail vorausfüllen
+    let rememberedEmail = '';
+    try{ rememberedEmail = localStorage.getItem('lager_remembered_email') || ''; }catch(e){}
+    try{ el('inp-email').value=rememberedEmail; el('inp-pw').value=''; }catch(e){}
     showScreen('screen-login');
-    setTimeout(()=>{ try{ el('inp-email').focus(); }catch(e){} }, 50);
+    setTimeout(()=>{ try{ if(rememberedEmail) el('inp-pw').focus(); else el('inp-email').focus(); }catch(e){} }, 50);
     return;
   }
   S.token=token; S.userEmail=email;
