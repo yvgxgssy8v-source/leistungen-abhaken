@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.29.0</title>
+  <title>Lagerentnahme V1.30.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.29.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.30.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6048,21 +6048,23 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   //    im Hintergrund vorgeladen haben.
   try{
     const ZXing = await loadZXing();
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.CODABAR
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    _scan.reader = new ZXing.MultiFormatReader();
-    _scan.reader.setHints(hints);
+    // Statt EINES MultiFormatReader (der intern selbst entscheidet, welche
+    // Format-Reader er in welcher Reihenfolge probiert – genau diese interne
+    // Weiche wollen wir umgehen) bauen wir uns die einzelnen, spezialisierten
+    // Reader direkt und probieren sie im Bild nacheinander selbst durch.
+    const specificReaders = [];
+    const tryAdd = (name, factory) => { try{ specificReaders.push({ name, reader: factory() }); }catch(e){ console.warn('[scanner] Reader nicht verfügbar:', name, e); } };
+    tryAdd('EAN13', () => new ZXing.EAN13Reader());
+    tryAdd('EAN8', () => new ZXing.EAN8Reader());
+    tryAdd('UPCA', () => new ZXing.UPCAReader());
+    tryAdd('UPCE', () => new ZXing.UPCEReader());
+    tryAdd('Code128', () => new ZXing.Code128Reader());
+    tryAdd('Code39', () => new ZXing.Code39Reader());
+    tryAdd('ITF', () => new ZXing.ITFReader());
+    tryAdd('Codabar', () => new ZXing.CodaBarReader());
+    tryAdd('QR', () => new ZXing.QRCodeReader());
+    if(!specificReaders.length) throw new Error('Keine Format-Reader verfügbar');
+    _scan.readers = specificReaders;
   }catch(e){
     els.status.textContent = 'Scanner nicht verfügbar';
     els.sub.textContent = e.message || String(e);
@@ -6119,25 +6121,28 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
             const ZXing = window.ZXing;
             const luminanceSource = new ZXing.RGBLuminanceSource(data.data, roiW, roiH);
             let result = null;
-            // 1. Versuch: HybridBinarizer (gut für die meisten Fälle, QR wie 1D)
-            try{
-              const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-              result = _scan.reader.decode(binaryBitmap);
-              lastStatus = 'kein Code gefunden (Hybrid)';
-            }catch(e1){
-              // 2. Versuch: GlobalHistogramBinarizer – nutzt ein anderes
-              // Schwellwert-Verfahren, das bei Strichcodes (gleichmäßigere
-              // Beleuchtung, feine Balken) öfter erfolgreich ist, wenn der
-              // erste Versuch nichts gefunden hat.
-              try{
-                const binaryBitmap2 = new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(luminanceSource));
-                result = _scan.reader.decode(binaryBitmap2);
-                lastStatus = 'kein Code gefunden (Global)';
-              }catch(e2){
-                lastStatus = (e2 && e2.name) ? e2.name : String(e2);
+            let triedNames = [];
+            // Beide Binarisierungs-Verfahren je Reader probieren (manche Codes
+            // klappen nur mit dem einen oder anderen Schwellwert-Verfahren).
+            const bitmaps = [
+              new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource)),
+              new ZXing.BinaryBitmap(new ZXing.GlobalHistogramBinarizer(luminanceSource))
+            ];
+            outer:
+            for(const {name, reader} of _scan.readers){
+              triedNames.push(name);
+              for(const bmp of bitmaps){
+                try{
+                  result = reader.decode(bmp);
+                  if(result) break outer;
+                }catch(eInner){
+                  // NotFoundException/FormatException/ChecksumException für
+                  // diesen einen Reader = einfach den nächsten probieren.
+                }
               }
             }
             if(result) value = result.getText();
+            else lastStatus = 'kein Code gefunden (' + triedNames.length + ' Reader probiert)';
           }catch(e){
             lastStatus = 'Fehler: ' + ((e && e.name) ? e.name : String(e));
             if(e && e.name && e.name !== 'NotFoundException'){
