@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.25.0</title>
+  <title>Lagerentnahme V1.26.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.25.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.26.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6001,25 +6001,27 @@ window.importBarcodeCsv=async function(){
 };
 
 // ════════════════ BARCODE / QR SCANNER ════════════════
-// Nutzt @zxing/browser: übernimmt Kamera-Start, Video-Anbindung und
-// kontinuierliches Dekodieren komplett selbst (offiziell dokumentierte,
-// gut getestete High-Level-API). Erkennt QR-Codes UND echte 1D-Strichcodes
-// (EAN-13/8, UPC-A/E, Code128, Code39, ITF …) einheitlich auf jedem Gerät.
-let _zxingBrowserLoading = null;
-function loadZXingBrowser(){
-  if(window.ZXingBrowser) return Promise.resolve(window.ZXingBrowser);
-  if(_zxingBrowserLoading) return _zxingBrowserLoading;
-  _zxingBrowserLoading = new Promise((resolve, reject) => {
+// Kamera-Start und Video-Anbindung übernehmen wir SELBST mit den
+// Standard-Web-APIs (getUserMedia) – das ist zu 100% bekanntes, robustes
+// Terrain. Die externe Bibliothek (@zxing/library) wird ausschließlich für den
+// reinen Dekodier-Schritt genutzt, und zwar rundum in try/catch abgesichert:
+// jeder Fehler wird sichtbar als Text angezeigt statt die App lautlos hängen
+// zu lassen (das war die Ursache der letzten Bugs).
+let _zxingLoading = null;
+function loadZXing(){
+  if(window.ZXing) return Promise.resolve(window.ZXing);
+  if(_zxingLoading) return _zxingLoading;
+  _zxingLoading = new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5';
-    s.onload = () => resolve(window.ZXingBrowser);
-    s.onerror = () => reject(new Error('Scanner-Bibliothek konnte nicht geladen werden'));
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload = () => { if(window.ZXing) resolve(window.ZXing); else reject(new Error('ZXing-Bibliothek geladen, aber window.ZXing fehlt')); };
+    s.onerror = () => reject(new Error('Scanner-Bibliothek konnte nicht geladen werden (Netzwerk?)'));
     document.head.appendChild(s);
   });
-  return _zxingBrowserLoading;
+  return _zxingLoading;
 }
 
-const _scan = { active:false, controls:null, onResult:null };
+const _scan = { active:false, stream:null, raf:0, reader:null, onResult:null, canvas:null, ctx:null };
 
 function _qrEls(){
   return { modal:el('qr-modal'), video:el('qr-video'), status:el('qr-status'), sub:el('qr-sub'), title:el('qr-title') };
@@ -6033,70 +6035,105 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
   els.modal.classList.add('show');
   el('qr-close').onclick = () => closeScanner();
 
-  let ZXingBrowser;
+  // 1) Bibliothek laden (rein für Dekodierung, unabhängig von der Kamera).
+  //    Läuft idealerweise sofort durch, da wir sie schon beim App-Start
+  //    im Hintergrund vorgeladen haben.
   try{
-    ZXingBrowser = await loadZXingBrowser();
+    const ZXing = await loadZXing();
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    _scan.reader = new ZXing.MultiFormatReader();
+    _scan.reader.setHints(hints);
   }catch(e){
     els.status.textContent = 'Scanner nicht verfügbar';
-    els.sub.textContent = e.message;
+    els.sub.textContent = e.message || String(e);
     return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
   }
 
-  _scan.active = true;
-  const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-
-  return new Promise((resolve) => {
-    _scan.onResult = (value) => { resolve(value); };
-
-    const handleFrame = (result, err, controls) => {
-      if(!_scan.active) return;
-      _scan.controls = controls;
-      if(result){
-        const value = result.getText();
-        els.status.textContent = '✓ ' + value;
-        if(navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
-        _scan.active = false;
-        try{ controls.stop(); }catch(e){}
-        setTimeout(()=>{
-          try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
-          els.modal.classList.remove('show');
-          const cb = _scan.onResult; _scan.onResult = null;
-          if(cb) cb(value);
-        }, 200);
-      } else if(err && err.name !== 'NotFoundException'){
-        // Alles außer "kein Code im aktuellen Bild" zur Diagnose ausgeben
-        console.warn('[scanner] decode error', err);
-      }
-    };
-
-    codeReader.decodeFromConstraints(
-      { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-      els.video,
-      handleFrame
-    ).then(controls => {
-      _scan.controls = controls;
-      if(_scan.active) els.status.textContent = 'Code mittig im Rahmen halten';
-    }).catch(e => {
-      els.status.textContent = 'Kamera nicht erlaubt';
-      els.sub.textContent = 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
+  // 2) Kamera starten – reines Standard-getUserMedia, keine Bibliothek beteiligt.
+  try{
+    _scan.stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
+  }catch(e){
+    els.status.textContent = 'Kamera nicht erlaubt';
+    els.sub.textContent = (e && e.name) ? ('Fehler: '+e.name) : 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
+    return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
+  }
+  try{
+    els.video.srcObject = _scan.stream;
+    await els.video.play();
+  }catch(e){
+    els.status.textContent = 'Kamera-Vorschau fehlgeschlagen';
+    els.sub.textContent = 'Fehler: ' + (e.message || e);
+    return new Promise(r => { _scan.onResult = (v)=>{ r(v); }; });
+  }
 
-    // Absicherung: bleibt die Kamera länger als 8s bei "wird gestartet" hängen
-    // (z.B. weil Safari den Zugriff nach einer kleinen Verzögerung stumm blockiert
-    // hat), zeigen wir statt eines endlosen Ladezustands eine klare Fehlermeldung.
-    setTimeout(()=>{
-      if(_scan.active && els.video.readyState < 2){
-        els.status.textContent = 'Kamera startet nicht';
-        els.sub.textContent = 'Bitte Seite neu laden und Kamera-Berechtigung in den Safari-Einstellungen prüfen.';
+  els.status.textContent = 'Code mittig im Rahmen halten';
+  _scan.active = true;
+  _scan.canvas = document.createElement('canvas');
+  _scan.ctx = _scan.canvas.getContext('2d', { willReadFrequently: true });
+
+  return new Promise(resolve => {
+    _scan.onResult = (value) => { resolve(value); };
+    const tick = () => {
+      if(!_scan.active) return;
+      const v = els.video;
+      if(v.readyState >= 2 && v.videoWidth > 0){
+        let value = null;
+        try{
+          // Breites Rechteck statt Quadrat zuschneiden (passend zur Form
+          // normaler 1D-Strichcodes), gleiche Proportionen wie das CSS-Frame.
+          const vw = v.videoWidth, vh = v.videoHeight;
+          const roiW = Math.round(Math.min(vw * 0.85, vh * 1.55));
+          const roiH = Math.round(roiW * (210/380));
+          const sx = Math.round((vw - roiW) / 2);
+          const sy = Math.round((vh - roiH) / 2);
+          _scan.canvas.width = roiW; _scan.canvas.height = roiH;
+          _scan.ctx.drawImage(v, sx, sy, roiW, roiH, 0, 0, roiW, roiH);
+          try{
+            const data = _scan.ctx.getImageData(0, 0, roiW, roiH);
+            const ZXing = window.ZXing;
+            const luminanceSource = new ZXing.RGBLuminanceSource(data.data, roiW, roiH);
+            const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+            const result = _scan.reader.decode(binaryBitmap);
+            if(result) value = result.getText();
+          }catch(e){
+            // NotFoundException = kein Code im aktuellen Bild, völlig normal.
+            // Alles andere zur Diagnose kurz sichtbar machen (nicht dauerhaft,
+            // damit es beim normalen Scannen nicht nervt).
+            if(e && e.name && e.name !== 'NotFoundException'){
+              console.warn('[scanner] decode error', e);
+            }
+          }
+        }catch(e){
+          console.warn('[scanner] frame error', e);
+        }
+        if(value){
+          els.status.textContent = '✓ ' + value;
+          if(navigator.vibrate) { try{ navigator.vibrate(60); }catch(e){} }
+          _scan.active = false;
+          setTimeout(()=>{
+            try{ if(_scan.stream){ _scan.stream.getTracks().forEach(t=>t.stop()); _scan.stream=null; } }catch(e){}
+            try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
+            els.modal.classList.remove('show');
+            const cb = _scan.onResult; _scan.onResult = null;
+            if(cb) cb(value);
+          }, 200);
+          return;
+        }
       }
-    }, 8000);
+      _scan.raf = requestAnimationFrame(tick);
+    };
+    _scan.raf = requestAnimationFrame(tick);
   });
 }
 
 function closeScanner(){
   _scan.active = false;
-  try{ if(_scan.controls) _scan.controls.stop(); }catch(e){}
-  _scan.controls = null;
+  if(_scan.raf){ cancelAnimationFrame(_scan.raf); _scan.raf = 0; }
+  try{ if(_scan.stream){ _scan.stream.getTracks().forEach(t => t.stop()); _scan.stream = null; } }catch(e){}
   const els = _qrEls();
   try{ els.video.pause(); els.video.srcObject = null; }catch(e){}
   els.modal.classList.remove('show');
@@ -7089,7 +7126,7 @@ checkSession();
 // Kamerastart liegt – sonst stuft Safari den Kamerazugriff manchmal nicht mehr
 // als direkt durch die Nutzeraktion ausgelöst ein und blockiert ihn stumm
 // (schwarzes Bild, kein Fehler).
-loadZXingBrowser().catch(()=>{ /* wird beim tatsächlichen Scan-Versuch erneut probiert */ });
+loadZXing().catch(()=>{ /* wird beim tatsächlichen Scan-Versuch erneut probiert */ });
 </script>
 <script data-pplx-inline-edit>
 (function () {
