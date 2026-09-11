@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.23.0</title>
+  <title>Lagerentnahme V1.24.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1502,7 +1502,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.23.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.24.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6076,6 +6076,16 @@ async function openScanner({ title = 'Barcode scannen', hint = 'Funktioniert mit
       els.status.textContent = 'Kamera nicht erlaubt';
       els.sub.textContent = 'Bitte den Kamera-Zugriff für diese Seite freigeben.';
     });
+
+    // Absicherung: bleibt die Kamera länger als 8s bei "wird gestartet" hängen
+    // (z.B. weil Safari den Zugriff nach einer kleinen Verzögerung stumm blockiert
+    // hat), zeigen wir statt eines endlosen Ladezustands eine klare Fehlermeldung.
+    setTimeout(()=>{
+      if(_scan.active && els.video.readyState < 2){
+        els.status.textContent = 'Kamera startet nicht';
+        els.sub.textContent = 'Bitte Seite neu laden und Kamera-Berechtigung in den Safari-Einstellungen prüfen.';
+      }
+    }, 8000);
   });
 }
 
@@ -7070,6 +7080,12 @@ el('confirm-del-ok').addEventListener('click', ()=>{ window.confirmDeleteJournal
 // ════════════════ START ════════════════
 updateNetBadge();
 checkSession();
+// Scanner-Bibliothek schon jetzt im Hintergrund laden (nicht erst beim Tippen
+// auf "Scannen"), damit später keine Ladezeit zwischen Fingertipp und
+// Kamerastart liegt – sonst stuft Safari den Kamerazugriff manchmal nicht mehr
+// als direkt durch die Nutzeraktion ausgelöst ein und blockiert ihn stumm
+// (schwarzes Bild, kein Fehler).
+loadZXingBrowser().catch(()=>{ /* wird beim tatsächlichen Scan-Versuch erneut probiert */ });
 </script>
 <script data-pplx-inline-edit>
 (function () {
