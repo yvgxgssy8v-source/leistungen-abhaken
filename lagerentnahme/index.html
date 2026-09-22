@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.39.0</title>
+  <title>Lagerentnahme V1.39.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1642,7 +1642,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.39.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.39.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -5245,7 +5245,7 @@ function _renderItemPickerList(q){
         <div class="item-picker-name">${escapeHtml(i.name||'?')}</div>
         <div class="item-picker-meta">
           ${sku}
-          <span class="ipm-stock ${stockCls}">Lagerbestand: ${fmtNum(bestand)} ${unit}</span>
+          <span class="ipm-stock ${stockCls}">Lagerbestand: ${fmtNum(bestand)} ${escapeHtml(fmtEinheit(bestand, i.einheit||'Stk'))}</span>
           ${cat}
         </div>
       </div>
@@ -5320,9 +5320,8 @@ function _applyItemToTrigger(id){
   const name=el(target+'-item-name');
   name.textContent=it.name||'?';
   name.classList.remove('placeholder');
-  const unit=unitLabel(it.einheit||'Stk');
   const bestand=Number(it.bestand)||0;
-  el(target+'-item-sub').textContent=`${it.id} · Lagerbestand: ${fmtNum(bestand)} ${unit}`;
+  el(target+'-item-sub').textContent=`${it.id} · Lagerbestand: ${fmtNum(bestand)} ${fmtEinheit(bestand, it.einheit||'Stk')}`;
   const thumb=el(target+'-item-thumb');
   if(it.bild_url){
     thumb.innerHTML=`<img src="${escapeHtml(it.bild_url)}" alt="">`;
@@ -5510,7 +5509,6 @@ window.renderVerbrauch = function(){
   const max = Math.max(1, ...list.map(x=>x.qty));
   cont.innerHTML = list.map(x => {
     const i = x.item;
-    const unit = escapeHtml(unitLabel(i.einheit||'Stk'));
     const thumbHtml = i.bild_url
       ? `<img src="${escapeHtml(i.bild_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">`
       : `<span>${escapeHtml((i.name||'?').charAt(0).toUpperCase())}</span>`;
@@ -5534,7 +5532,7 @@ window.renderVerbrauch = function(){
         </div>
         <div style="text-align:right;flex-shrink:0;min-width:72px;">
           <div style="font-weight:800;font-size:18px;color:${hasQty?'var(--primary)':'#9ca3af'};">${fmtNum(x.qty)}</div>
-          <div style="font-size:12px;color:#6b7280;">${unit}</div>
+          <div style="font-size:12px;color:#6b7280;">${escapeHtml(fmtEinheit(x.qty, i.einheit||'Stk'))}</div>
         </div>
       </div>`;
   }).join('');
