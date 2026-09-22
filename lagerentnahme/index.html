@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.39.1</title>
+  <title>Lagerentnahme V1.39.2</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1642,7 +1642,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.39.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.39.2</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2809,7 +2809,10 @@ function fmtEinheit(qty, einheit){
     'Karton':  'Kartons',
     'Kanister':'Kanister',  // unveränderlich
     'Tube':    'Tuben',
-    'Beutel':  'Beutel'     // unveränderlich
+    'Beutel':  'Beutel',    // unveränderlich
+    'Gitter':  'Gitter',    // unveränderlich
+    'Kartusche':'Kartuschen',
+    'Klinge':  'Klingen'
   };
   if(isOne) return e;
   return plural[e] || e;
