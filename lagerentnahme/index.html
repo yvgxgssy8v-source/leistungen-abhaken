@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.40.0</title>
+  <title>Lagerentnahme V1.40.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1646,7 +1646,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.40.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.40.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2816,7 +2816,8 @@ function fmtEinheit(qty, einheit){
     'Beutel':  'Beutel',    // unveränderlich
     'Gitter':  'Gitter',    // unveränderlich
     'Kartusche':'Kartuschen',
-    'Klinge':  'Klingen'
+    'Klinge':  'Klingen',
+    'Maske':   'Masken'
   };
   if(isOne) return e;
   return plural[e] || e;
@@ -6244,7 +6245,7 @@ window.bulkArtikelSetRest = async function(value){
 
 // Bekannte Einheiten fürs Dropdown (Reihenfolge = Anzeige-Reihenfolge).
 // Muss inhaltlich zur Pluralform-Tabelle in fmtEinheit() passen.
-const ARTIKEL_EINHEITEN = ['Stk','Packung','Rolle','Meter','Liter','Kg','Eimer','Sack','Dose','Flasche','Karton','Kanister','Tube','Beutel','Gitter','Kartusche','Klinge'];
+const ARTIKEL_EINHEITEN = ['Stk','Packung','Rolle','Meter','Liter','Kg','Eimer','Sack','Dose','Flasche','Karton','Kanister','Tube','Beutel','Gitter','Kartusche','Klinge','Maske'];
 
 function _artikelDtEinheitSelect(sku, currentValue){
   const cur = currentValue || 'Stk';
