@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.40.1</title>
+  <title>Lagerentnahme V1.41.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1646,7 +1646,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.40.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.41.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -1762,11 +1762,6 @@
         <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></div>
         <div class="tile-title">Bestand</div>
         <div class="tile-sub">Lagerbestand aller Artikel</div>
-      </button>
-      <button class="tile admin-only" onclick="openZugang()">
-        <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
-        <div class="tile-title">Zugang buchen</div>
-        <div class="tile-sub">Wareneingang erfassen</div>
       </button>
       <button class="tile admin-only" onclick="openInventur()">
         <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg></div>
@@ -2100,7 +2095,6 @@
     <div class="stats-row" id="bestand-stats"></div>
     <div id="bestand-list"></div>
   </main>
-  <button class="fab" onclick="openZugang()" title="Zugang buchen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
 </div>
 
 <!-- ═══════════════════ BESTAND DETAIL ═══════════════════ -->
@@ -2126,49 +2120,6 @@
     </div>
     <div class="section-head">Buchungen</div>
     <div id="detail-movements"></div>
-  </main>
-</div>
-
-<!-- ═══════════════════ ZUGANG ═══════════════════ -->
-<div id="screen-zugang" class="screen">
-  <header>
-    <button class="back-btn" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>Zurück</button>
-    <h1 style="font-size:var(--fs-lg);">Zugang buchen</h1>
-    <div class="spacer"></div>
-  </header>
-  <main>
-    <div class="form-group">
-      <label class="form-label">Artikel</label>
-      <input type="hidden" id="zugang-item-id" value="">
-      <button type="button" id="zugang-item-trigger" class="picker-trigger" onclick="openZugangPicker()">
-        <div class="picker-trigger-thumb" id="zugang-item-thumb"><span>?</span></div>
-        <div class="picker-trigger-text">
-          <div class="picker-trigger-name" id="zugang-item-name">Artikel wählen…</div>
-          <div class="picker-trigger-sub" id="zugang-item-sub">Tippen zum Auswählen</div>
-        </div>
-        <svg class="picker-trigger-caret" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Menge</label>
-      <input type="number" id="zugang-menge" inputmode="decimal" min="0" step="any" value="1">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Lieferant (optional)</label>
-      <input type="text" id="zugang-lieferant" placeholder="z. B. Malerfachhandel">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Lieferschein-Nr (optional)</label>
-      <input type="text" id="zugang-ls" placeholder="z. B. LS-2026-0042">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Notiz (optional)</label>
-      <textarea id="zugang-note"></textarea>
-    </div>
-    <div style="display:flex;gap:12px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="goHome()">Abbrechen</button>
-      <button class="btn btn-primary" style="flex:2;" id="zugang-save" onclick="saveZugang()">Speichern</button>
-    </div>
   </main>
 </div>
 
@@ -2572,7 +2523,7 @@
   </div>
 </div>
 
-<!-- Artikel-Such-Picker (Zugang buchen) -->
+<!-- Artikel-Such-Picker (Restmaterial / Barcode-Zuordnung) -->
 <div id="item-picker" class="modal" style="display:none;">
   <div class="modal-overlay" onclick="closeItemPicker()"></div>
   <div class="item-picker-sheet">
@@ -2706,7 +2657,7 @@ const S = {
   gpsError: null,           // letzter GPS-Fehler
   todoDelPending: null,     // {id, name} für Bestätigungsdialog
   // Restmaterial einlagern (Rücklagerung von Baustellen-Resten ins Lager)
-  itemPickerTarget: 'zugang',  // 'zugang' | 'restmaterial' | 'barcode-link'
+  itemPickerTarget: 'restmaterial',  // 'restmaterial' | 'barcode-link'
   restmatSelItem: null,
   restmatSelSite: '',
   pendingBarcode: null,        // Code, der gerade einem Artikel zugeordnet wird
@@ -4741,60 +4692,21 @@ window.deactivatePostkastenItem=async function(id){
   }
 };
 
-// Modus-Umschaltung Postkasten-Karte (Zugang/Korrektur)
-window.setPostkastenMode=function(id, mode){
-  const safeId=id;
-  const inp=document.getElementById('pk-correct-'+safeId);
-  const lab=document.getElementById('pk-label-'+safeId);
-  const hint=document.getElementById('pk-hint-'+safeId);
-  const btn=document.getElementById('pk-btn-'+safeId);
-  const tabZ=document.getElementById('pk-tab-zugang-'+safeId);
-  const tabK=document.getElementById('pk-tab-korrektur-'+safeId);
-  if(!inp||!lab||!tabZ||!tabK) return;
-  inp.dataset.mode=mode;
-  inp.value='';
-  if(mode==='zugang'){
-    tabZ.style.background='#b41c4f'; tabZ.style.color='#fff';
-    tabK.style.background='transparent'; tabK.style.color='#6b7280';
-    lab.textContent='Zugang:';
-    inp.placeholder='Menge';
-    if(btn) btn.textContent='Buchen';
-    if(hint) hint.textContent='Menge der eingetroffenen Ware → wird zum Bestand addiert';
-  } else {
-    tabK.style.background='#b41c4f'; tabK.style.color='#fff';
-    tabZ.style.background='transparent'; tabZ.style.color='#6b7280';
-    lab.textContent='Neuer Bestand:';
-    const item=(S.items||[]).find(i=>i.id===id);
-    inp.placeholder=item?String(fmtNum(item.bestand||0)):'';
-    if(btn) btn.textContent='Korrigieren';
-    if(hint) hint.textContent='Tatsächlicher Bestand nach Zählung → ersetzt den Lagerbestand';
-  }
-  inp.focus();
-};
-
-// Inline-Buchung aus dem Postkasten (Zugang oder Korrektur)
+// Inline-Bestandskorrektur aus dem Postkasten
 window.savePostkastenCorrect=async function(id){
   const item=(S.items||[]).find(i=>i.id===id);
   if(!item){ toast('Artikel nicht gefunden','err'); return; }
   const inp=document.getElementById('pk-correct-'+id);
   if(!inp){ toast('Eingabefeld fehlt','err'); return; }
-  const mode=inp.dataset.mode||'zugang';
   const raw=(inp.value||'').trim();
-  if(!raw){ toast(mode==='zugang'?'Bitte Menge eingeben':'Bitte neuen Bestand eingeben','err'); inp.focus(); return; }
+  if(!raw){ toast('Bitte neuen Bestand eingeben','err'); inp.focus(); return; }
   const val=parseNum(raw);
   if(!Number.isFinite(val)||val<0){ toast('Ungültiger Wert','err'); inp.focus(); return; }
   const bestand=Number(item.bestand||0);
-  let rec, successMsg;
-  if(mode==='zugang'){
-    if(val===0){ toast('Menge muss größer 0 sein','err'); inp.focus(); return; }
-    rec={ type:'Zugang', item_id:item.id, qty:val, signed_qty:val, site:null, user_email:S.userEmail, user_name:S.userName, note:'Wareneingang (Postkasten)' };
-    successMsg='✓ '+fmtNum(val)+' gebucht → neuer Bestand '+fmtNum(bestand+val);
-  } else {
-    const diff=val-bestand;
-    if(diff===0){ toast('Keine Änderung',''); return; }
-    rec={ type:'Korrektur', item_id:item.id, qty:Math.abs(diff), signed_qty:diff, site:null, user_email:S.userEmail, user_name:S.userName, note:'Bestandskorrektur (Postkasten)' };
-    successMsg='✓ Bestand auf '+fmtNum(val)+' korrigiert';
-  }
+  const diff=val-bestand;
+  if(diff===0){ toast('Keine Änderung',''); return; }
+  const rec={ type:'Korrektur', item_id:item.id, qty:Math.abs(diff), signed_qty:diff, site:null, user_email:S.userEmail, user_name:S.userName, note:'Bestandskorrektur (Postkasten)' };
+  const successMsg='✓ Bestand auf '+fmtNum(val)+' korrigiert';
   const res=await insertJournal(rec);
   if(res.ok){
     toast(successMsg,'ok');
@@ -4804,39 +4716,6 @@ window.savePostkastenCorrect=async function(id){
   } else {
     toast('Fehler: '+(res.error||'offline'),'err');
   }
-};
-
-// ════════════════ ZUGANG (Admin) ════════════════
-function resetZugangItemTrigger(){
-  el('zugang-item-id').value='';
-  const name=el('zugang-item-name'); name.textContent='Artikel wählen…'; name.classList.add('placeholder');
-  el('zugang-item-sub').textContent='Tippen zum Auswählen';
-  el('zugang-item-thumb').innerHTML='<span>?</span>';
-}
-window.openZugang=async function(){
-  showScreen('screen-zugang');
-  await loadItems();
-  resetZugangItemTrigger();
-  el('zugang-menge').value='1';
-  ['zugang-lieferant','zugang-ls','zugang-note'].forEach(id=>el(id).value='');
-};
-window.saveZugang=async function(){
-  const item_id=el('zugang-item-id').value;
-  if(!item_id){ toast('Bitte Artikel wählen','err'); return; }
-  const menge=parseNum(el('zugang-menge').value);
-  if(!Number.isFinite(menge)||menge<=0){ toast('Bitte gültige Menge eingeben','err'); return; }
-  const liefer=el('zugang-lieferant').value.trim();
-  const ls=el('zugang-ls').value.trim();
-  let note=el('zugang-note').value.trim();
-  const parts=[]; if(liefer) parts.push('Lieferant: '+liefer); if(ls) parts.push('LS-Nr: '+ls); if(note) parts.push(note);
-  note=parts.join(' · ');
-  const btn=el('zugang-save'); btn.disabled=true; const o=btn.innerHTML; btn.innerHTML='<span class="spin"></span> Speichern…';
-  const rec={ type:'Zugang', item_id, qty:menge, signed_qty:menge, site:null, user_email:S.userEmail, user_name:S.userName, note };
-  const res=await insertJournal(rec);
-  btn.disabled=false; btn.innerHTML=o;
-  if(res.ok){ toast('✓ Zugang gespeichert','ok'); await loadItems(); goHome(); }
-  else if(res.queued){ toast('Offline – wird synchronisiert',''); goHome(); }
-  else toast('Fehler: '+(res.error||'unbekannt'),'err');
 };
 
 // ════════════════ RESTMATERIAL EINLAGERN ════════════════
@@ -5206,7 +5085,7 @@ window.saveRestlagerAuslagerung = async function(){
   }
 };
 
-// ════════════════ ARTIKEL-SUCH-PICKER (Zugang) ════════════════
+// ════════════════ ARTIKEL-SUCH-PICKER (Restmaterial) ════════════════
 function _itemPickerStockClass(b){
   const n=Number(b)||0;
   if(n<=0) return 'zero';
@@ -5264,19 +5143,6 @@ function _resetItemPickerTitle(){
   const t = el('item-picker-title');
   if(t) t.textContent = 'Artikel wählen';
 }
-window.openZugangPicker=function(){
-  S.itemPickerTarget='zugang';
-  const m=el('item-picker'); if(!m) return;
-  _resetItemPickerTitle();
-  el('item-picker-input').value='';
-  el('item-picker-clear').classList.remove('visible');
-  _renderItemPickerList('');
-  m.style.display='flex';
-  // Auf iOS: kleine Verzögerung damit Focus klappt
-  setTimeout(()=>{ try{ el('item-picker-input').focus(); }catch(e){} }, 60);
-  // Scroll-Position zurücksetzen
-  setTimeout(()=>{ el('item-picker-list').scrollTop=0; }, 0);
-};
 window.openRestmatPicker=function(){
   S.itemPickerTarget='restmaterial';
   const m=el('item-picker'); if(!m) return;
@@ -5319,11 +5185,11 @@ window.clearItemPicker=function(){
   _renderItemPickerList('');
   try{ inp.focus(); }catch(e){}
 };
-// Füllt die Zugang- oder Restmaterial-Trigger-Felder mit dem gewählten Artikel.
+// Füllt die Restmaterial-Trigger-Felder mit dem gewählten Artikel.
 function _applyItemToTrigger(id){
   const it=(S.items||[]).find(i=>String(i.id)===String(id));
   if(!it) return;
-  const target = S.itemPickerTarget === 'restmaterial' ? 'restmat' : 'zugang';
+  const target = 'restmat';
   el(target+'-item-id').value=String(it.id);
   const name=el(target+'-item-name');
   name.textContent=it.name||'?';
@@ -5337,7 +5203,7 @@ function _applyItemToTrigger(id){
     const first=(it.name||'?').trim().charAt(0).toUpperCase();
     thumb.innerHTML=`<span>${escapeHtml(first)}</span>`;
   }
-  if(target==='restmat') S.restmatSelItem = it;
+  S.restmatSelItem = it;
 }
 // Ordnet einen vorher unbekannten, gescannten Barcode einem bestehenden Artikel
 // zu (per RPC, damit auch Vorarbeiter das dürfen, ohne generelle Schreibrechte
@@ -7584,16 +7450,12 @@ function renderPostkasten(){
               '</div>'+
             '</div>'+
             '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed '+brCol+';" onclick="event.stopPropagation()">'+
-              '<div style="display:flex;gap:4px;margin-bottom:8px;background:#fff;padding:3px;border-radius:8px;border:1px solid #e5e7eb;">'+
-                '<button type="button" id="pk-tab-zugang-'+safeId+'" onclick="setPostkastenMode(\''+idJs+'\',\'zugang\')" style="flex:1;padding:7px 6px;font-size:12px;font-weight:700;border:none;border-radius:6px;cursor:pointer;background:#b41c4f;color:#fff;">+ Zugang</button>'+
-                '<button type="button" id="pk-tab-korrektur-'+safeId+'" onclick="setPostkastenMode(\''+idJs+'\',\'korrektur\')" style="flex:1;padding:7px 6px;font-size:12px;font-weight:700;border:none;border-radius:6px;cursor:pointer;background:transparent;color:#6b7280;">✎ Korrektur</button>'+
-              '</div>'+
               '<div style="display:flex;gap:8px;align-items:center;">'+
-                '<label id="pk-label-'+safeId+'" style="font-size:13px;color:#374151;font-weight:600;white-space:nowrap;">Zugang:</label>'+
-                '<input type="number" inputmode="decimal" step="any" min="0" id="pk-correct-'+safeId+'" data-mode="zugang" placeholder="Menge" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;background:#fff;">'+
-                '<button id="pk-btn-'+safeId+'" class="btn btn-primary" style="padding:8px 14px;font-size:13px;white-space:nowrap;" onclick="savePostkastenCorrect(\''+idJs+'\')">Buchen</button>'+
+                '<label style="font-size:13px;color:#374151;font-weight:600;white-space:nowrap;">Neuer Bestand:</label>'+
+                '<input type="number" inputmode="decimal" step="any" min="0" id="pk-correct-'+safeId+'" placeholder="'+escapeHtml(fmtNum(bestand))+'" style="flex:1;min-width:0;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;background:#fff;">'+
+                '<button id="pk-btn-'+safeId+'" class="btn btn-primary" style="padding:8px 14px;font-size:13px;white-space:nowrap;" onclick="savePostkastenCorrect(\''+idJs+'\')">Korrigieren</button>'+
               '</div>'+
-              '<div id="pk-hint-'+safeId+'" style="font-size:11px;color:#6b7280;margin-top:6px;">Menge der eingetroffenen Ware → wird zum Bestand addiert</div>'+
+              '<div style="font-size:11px;color:#6b7280;margin-top:6px;">Tatsächlicher Bestand nach Zählung → ersetzt den Lagerbestand</div>'+
               ((typeof isAdmin==='function' && isAdmin()) ? (function(){
                 const canDeact = bestand<=0;
                 const style = canDeact
