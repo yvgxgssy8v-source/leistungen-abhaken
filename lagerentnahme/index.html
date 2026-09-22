@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.39.2</title>
+  <title>Lagerentnahme V1.40.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -338,16 +338,20 @@
     table.artikel-dt tr.dirty { background: #fffbeb !important; }
     table.artikel-dt tr.new-row { background: #ecfdf5 !important; }
     table.artikel-dt input[type="text"],
-    table.artikel-dt input[type="number"] {
+    table.artikel-dt input[type="number"],
+    table.artikel-dt select {
       width: 100%; border: 1px solid transparent; background: transparent;
       padding: 10px 10px; border-radius: 8px; font-size: 16px; color: #111827;
       font-family: inherit; line-height: 1.3;
     }
-    table.artikel-dt input:focus {
+    table.artikel-dt select { cursor: pointer; }
+    table.artikel-dt input:focus,
+    table.artikel-dt select:focus {
       border-color: var(--primary, #9d174d); background: #fff; outline: none;
       box-shadow: 0 0 0 3px rgba(157,23,77,0.12);
     }
-    table.artikel-dt input:hover { background: #eef2ff; }
+    table.artikel-dt input:hover,
+    table.artikel-dt select:hover { background: #eef2ff; }
     table.artikel-dt .dt-thumb {
       width: 52px; height: 52px; border-radius: 10px; object-fit: cover;
       background: #e5e7eb; display: block; font-size: 18px;
@@ -1642,7 +1646,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.39.2</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.40.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -6173,7 +6177,7 @@ function renderArtikelListDesktop(){
     S._artikelNewRows = S._artikelNewRows.filter(r => r.tempId !== b.dataset.delNew);
     renderArtikelListDesktop();
   });
-  list.querySelectorAll('input[data-sku]').forEach(inp => {
+  list.querySelectorAll('input[data-sku], select[data-sku]').forEach(inp => {
     inp.addEventListener('input', () => _markArtikelDtDirty(inp));
     inp.addEventListener('change', () => _markArtikelDtDirty(inp));
   });
@@ -6238,6 +6242,19 @@ window.bulkArtikelSetRest = async function(value){
   renderArtikelListDesktop();
 };
 
+// Bekannte Einheiten fürs Dropdown (Reihenfolge = Anzeige-Reihenfolge).
+// Muss inhaltlich zur Pluralform-Tabelle in fmtEinheit() passen.
+const ARTIKEL_EINHEITEN = ['Stk','Packung','Rolle','Meter','Liter','Kg','Eimer','Sack','Dose','Flasche','Karton','Kanister','Tube','Beutel','Gitter','Kartusche','Klinge'];
+
+function _artikelDtEinheitSelect(sku, currentValue){
+  const cur = currentValue || 'Stk';
+  // Falls ein Artikel eine unbekannte/alte Einheit hat, die nicht in der Liste
+  // steht: trotzdem als Option anzeigen, damit der Wert nicht verloren geht.
+  const options = ARTIKEL_EINHEITEN.includes(cur) ? ARTIKEL_EINHEITEN : [cur, ...ARTIKEL_EINHEITEN];
+  const opts = options.map(u => `<option value="${escapeHtml(u)}" ${u===cur?'selected':''}>${escapeHtml(u)}</option>`).join('');
+  return `<select data-sku="${escapeHtml(sku)}" data-field="einheit" style="width:120px;">${opts}</select>`;
+}
+
 function _artikelDtRow(item, isNew){
   const sku = isNew ? item.tempId : item.id;
   const dirty = isNew ? {} : (S._artikelDirty[sku] || {});
@@ -6258,7 +6275,7 @@ function _artikelDtRow(item, isNew){
     <td>${skuCell}</td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="name" value="${escapeHtml(val('name',''))}" placeholder="Name"></td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="kategorie" value="${escapeHtml(val('kategorie',''))}" placeholder="–"></td>
-    <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="einheit" value="${escapeHtml(val('einheit','Stk'))}" style="width:100px;"></td>
+    <td>${_artikelDtEinheitSelect(sku, val('einheit','Stk'))}</td>
     <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="bestand" value="${escapeHtml(String(val('bestand',0)))}" style="width:110px;" step="any"></td>
     <td><input type="number" data-sku="${escapeHtml(sku)}" data-field="unit_price" value="${escapeHtml(String(val('unit_price','')))}" style="width:110px;" step="0.01"></td>
     <td><input type="text" data-sku="${escapeHtml(sku)}" data-field="cost_center" value="${escapeHtml(val('cost_center',''))}" style="width:140px;"></td>
