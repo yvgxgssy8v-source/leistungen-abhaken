@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.45.1</title>
+  <title>Lagerentnahme V1.45.2</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -351,14 +351,15 @@
     }
     .verb-wiz-opt.active { border-color: var(--primary); background: #fdf2f8; color: var(--primary); }
     .verb-filter-summary {
-      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+      display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
     }
     .verb-filter-chip {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: #f3f4f6; color: #374151; border-radius: 999px;
-      padding: 6px 12px; font-size: 13px; font-weight: 600;
+      display: flex; align-items: baseline; gap: 8px;
+      background: #f3f4f6; border-left: 4px solid var(--primary); border-radius: 8px;
+      padding: 12px 16px; font-size: 17px; font-weight: 600; color: #374151;
     }
-    .verb-filter-chip b { font-weight: 800; color: #111827; }
+    .verb-filter-chip .verb-filter-label { color: #6b7280; min-width: 100px; flex-shrink: 0; }
+    .verb-filter-chip b { font-weight: 800; color: #111827; font-size: 18px; }
 
     /* ── Artikel verwalten: Desktop-Tabelle ── */
     .artikel-dt-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
@@ -1691,7 +1692,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.45.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.45.2</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -5537,10 +5538,10 @@ window.renderVerbrauch = function(){
     const userTxt = (userSel && userSel.value) ? userSel.selectedOptions[0]?.textContent : 'Alle Nutzer';
     const itemTxt = (itemSel && itemSel.value) ? itemSel.selectedOptions[0]?.textContent : 'Alle Artikel';
     sumEl.innerHTML = [
-      `<span class="verb-filter-chip">📅 <b>${escapeHtml(periodName)}</b></span>`,
-      `<span class="verb-filter-chip">📍 <b>${escapeHtml(siteTxt||'Alle Baustellen')}</b></span>`,
-      `<span class="verb-filter-chip">👤 <b>${escapeHtml(userTxt||'Alle Nutzer')}</b></span>`,
-      `<span class="verb-filter-chip">📦 <b>${escapeHtml(itemTxt||'Alle Artikel')}</b></span>`
+      `<span class="verb-filter-chip"><span class="verb-filter-label">Zeitraum</span> <b>${escapeHtml(periodName)}</b></span>`,
+      `<span class="verb-filter-chip"><span class="verb-filter-label">Baustelle</span> <b>${escapeHtml(siteTxt||'Alle Baustellen')}</b></span>`,
+      `<span class="verb-filter-chip"><span class="verb-filter-label">Nutzer</span> <b>${escapeHtml(userTxt||'Alle Nutzer')}</b></span>`,
+      `<span class="verb-filter-chip"><span class="verb-filter-label">Artikel</span> <b>${escapeHtml(itemTxt||'Alle Artikel')}</b></span>`
     ].join('');
   }
 
