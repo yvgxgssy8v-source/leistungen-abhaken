@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.43.1</title>
+  <title>Lagerentnahme V1.44.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1682,7 +1682,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.43.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.44.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2341,6 +2341,10 @@
       <div id="verb-wiz-step-2" class="verb-wiz-step" style="display:none;">
         <div class="form-group">
           <label class="form-label">2. Baustelle wählen</label>
+          <div class="search-wrap" style="margin-bottom:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="verb-wiz-site-search" placeholder="Baustelle suchen…" oninput="renderVerbWizOptionList('verb-wiz-site-list','verb-site',this.value)" autocomplete="off">
+          </div>
           <div id="verb-wiz-site-list" class="verb-wiz-list"></div>
         </div>
         <div style="display:flex;gap:12px;">
@@ -3595,7 +3599,7 @@ window.updateSitePickerBtn = function(){
   if(S.selSite && S.selSite.trim()){
     btn.classList.remove('empty');
     btn.classList.add('filled');
-    txt.textContent = (typeof siteLabel==='function') ? siteLabel(S.selSite) : S.selSite;
+    txt.textContent = S.selSiteLabel || ((typeof siteLabel==='function') ? siteLabel(S.selSite) : S.selSite);
   } else {
     btn.classList.add('empty');
     btn.classList.remove('filled');
@@ -3613,7 +3617,7 @@ window.renderRecentSites = function(){
   list.innerHTML = recents.map(name => {
     const isSel = (S.selSite === name);
     return `
-      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${JSON.stringify(name).replace(/"/g,'&quot;')})">
+      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${JSON.stringify(name).replace(/"/g,'&quot;')}, ${JSON.stringify((typeof siteLabel==='function')?siteLabel(name):name).replace(/"/g,'&quot;')})">
         <span class="site-recent-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </span>
@@ -3624,23 +3628,23 @@ window.renderRecentSites = function(){
   }).join('');
 };
 
-window.selectSite = function(name){
+window.selectSite = function(name, label){
   if(S.sitePickerTarget === 'todo'){
-    S.todoSelSite = name;
+    S.todoSelSite = name; S.todoSelSiteLabel = label || name;
     updateTodoAddSitePickerBtn();
     renderTodoAddRecentSites();
     refreshTodoAddSaveBtnState();
   } else if(S.sitePickerTarget === 'restmaterial'){
-    S.restmatSelSite = name;
+    S.restmatSelSite = name; S.restmatSelSiteLabel = label || name;
     updateRestmatSitePickerBtn();
     renderRestmatRecentSites();
   } else if(S.sitePickerTarget === 'restlager-auslagern'){
-    S.restlagerAuslSelSite = name;
+    S.restlagerAuslSelSite = name; S.restlagerAuslSelSiteLabel = label || name;
     updateRestlagerAuslSitePickerBtn();
     renderRestlagerAuslRecentSites();
     refreshRestlagerAuslSaveBtnState();
   } else {
-    S.selSite = name;
+    S.selSite = name; S.selSiteLabel = label || name;
     updateSitePickerBtn();
     renderRecentSites();
     refreshSaveBtnState();
@@ -3791,7 +3795,7 @@ window.renderSitePicker = function(){
     : (S.sitePickerTarget === 'restlager-auslagern' ? S.restlagerAuslSelSite
     : S.selSite));
   list.innerHTML = filtered.map(x => `
-    <button type="button" class="site-recent-card ${currentSel===x.value?'selected':''}" onclick="selectSite(${JSON.stringify(x.value).replace(/"/g,'&quot;')})">
+    <button type="button" class="site-recent-card ${currentSel===x.value?'selected':''}" onclick="selectSite(${JSON.stringify(x.value).replace(/"/g,'&quot;')}, ${JSON.stringify(x.label).replace(/"/g,'&quot;')})">
       <span class="site-recent-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
       </span>
@@ -4862,7 +4866,7 @@ window.updateRestmatSitePickerBtn = function(){
   if(!btn || !txt) return;
   if(S.restmatSelSite && S.restmatSelSite.trim()){
     btn.classList.remove('empty'); btn.classList.add('filled');
-    txt.textContent = (typeof siteLabel==='function') ? siteLabel(S.restmatSelSite) : S.restmatSelSite;
+    txt.textContent = S.restmatSelSiteLabel || ((typeof siteLabel==='function') ? siteLabel(S.restmatSelSite) : S.restmatSelSite);
   } else {
     btn.classList.add('empty'); btn.classList.remove('filled');
     txt.textContent = 'Baustelle wählen — Pflichtfeld';
@@ -4890,12 +4894,14 @@ window.renderRestmatRecentSites = function(){
   list.innerHTML = recents.map(name => {
     const isSel = (S.restmatSelSite === name);
     const safe = JSON.stringify(name).replace(/"/g,'&quot;');
+    const label = (typeof siteLabel==='function')?siteLabel(name):name;
+    const safeLabel = JSON.stringify(label).replace(/"/g,'&quot;');
     return `
-      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${safe})">
+      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${safe}, ${safeLabel})">
         <span class="site-recent-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </span>
-        <span class="site-recent-name">${escapeHtml((typeof siteLabel==='function')?siteLabel(name):name)}</span>
+        <span class="site-recent-name">${escapeHtml(label)}</span>
         ${isSel ? '<span class="site-recent-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' : ''}
       </button>`;
   }).join('');
@@ -5060,7 +5066,7 @@ window.updateRestlagerAuslSitePickerBtn = function(){
   if(!btn || !txt) return;
   if(S.restlagerAuslSelSite && S.restlagerAuslSelSite.trim()){
     btn.classList.remove('empty'); btn.classList.add('filled');
-    txt.textContent = (typeof siteLabel==='function') ? siteLabel(S.restlagerAuslSelSite) : S.restlagerAuslSelSite;
+    txt.textContent = S.restlagerAuslSelSiteLabel || ((typeof siteLabel==='function') ? siteLabel(S.restlagerAuslSelSite) : S.restlagerAuslSelSite);
   } else {
     btn.classList.add('empty'); btn.classList.remove('filled');
     txt.textContent = 'Baustelle wählen — Pflichtfeld';
@@ -5086,12 +5092,14 @@ window.renderRestlagerAuslRecentSites = function(){
   list.innerHTML = recents.map(name => {
     const isSel = (S.restlagerAuslSelSite === name);
     const safe = JSON.stringify(name).replace(/"/g,'&quot;');
+    const label = (typeof siteLabel==='function')?siteLabel(name):name;
+    const safeLabel = JSON.stringify(label).replace(/"/g,'&quot;');
     return `
-      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${safe})">
+      <button type="button" class="site-recent-card ${isSel?'selected':''}" onclick="selectSite(${safe}, ${safeLabel})">
         <span class="site-recent-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </span>
-        <span class="site-recent-name">${escapeHtml((typeof siteLabel==='function')?siteLabel(name):name)}</span>
+        <span class="site-recent-name">${escapeHtml(label)}</span>
         ${isSel ? '<span class="site-recent-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' : ''}
       </button>`;
   }).join('');
@@ -5456,7 +5464,7 @@ function showVerbWizStep(n){
     const sep = idx<4 ? '<span class="verb-wiz-arrow">›</span>' : '';
     return `<span class="verb-wiz-dot ${cls}">${idx}. ${escapeHtml(label)}</span>${sep}`;
   }).join('');
-  if(n===2) renderVerbWizOptionList('verb-wiz-site-list','verb-site');
+  if(n===2){ el('verb-wiz-site-search').value=''; renderVerbWizOptionList('verb-wiz-site-list','verb-site'); }
   if(n===3) renderVerbWizOptionList('verb-wiz-user-list','verb-user');
   if(n===4){ el('verb-wiz-item-search').value=''; renderVerbWizOptionList('verb-wiz-item-list','verb-item'); }
 }
@@ -6968,7 +6976,7 @@ window.updateTodoAddSitePickerBtn = function(){
   if(!btn || !txt) return;
   if(S.todoSelSite && S.todoSelSite.trim()){
     btn.classList.remove('empty'); btn.classList.add('filled');
-    txt.textContent = (typeof siteLabel==='function') ? siteLabel(S.todoSelSite) : S.todoSelSite;
+    txt.textContent = S.todoSelSiteLabel || ((typeof siteLabel==='function') ? siteLabel(S.todoSelSite) : S.todoSelSite);
   } else {
     btn.classList.add('empty'); btn.classList.remove('filled');
     txt.textContent = 'Baustelle waehlen — Pflichtfeld';
@@ -6997,6 +7005,7 @@ window.renderTodoAddRecentSites = function(){
 };
 window.selectTodoSiteFromRecent = function(name){
   S.todoSelSite = name;
+  S.todoSelSiteLabel = (typeof siteLabel==='function') ? siteLabel(name) : name;
   updateTodoAddSitePickerBtn();
   renderTodoAddRecentSites();
   refreshTodoAddSaveBtnState();
