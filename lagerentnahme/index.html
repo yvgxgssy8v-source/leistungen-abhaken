@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.41.0</title>
+  <title>Lagerentnahme V1.41.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -860,6 +860,14 @@
       text-align: center;
       flex: 1;
     }
+    .qty-total-unit {
+      font-size: 16px;
+      font-weight: 700;
+      margin-left: 6px;
+      color: var(--text);
+      font-variant-numeric: normal;
+      vertical-align: middle;
+    }
     .qty-reset {
       width: 40px; height: 40px;
       border-radius: 10px;
@@ -1646,7 +1654,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.41.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.41.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -3430,7 +3438,10 @@ window.entnahmeQty = (function(){
   }
   function render(){
     const d = el('entnahme-menge-display');
-    if(d) d.textContent = String(value);
+    if(d){
+      const unitD = (S.selItem && S.selItem.einheit) || 'Stk';
+      d.innerHTML = `${value}<span class="qty-total-unit">${escapeHtml(fmtEinheit(value, unitD))}</span>`;
+    }
     const hint = el('entnahme-menge-max');
     if(hint){
       if(Number.isFinite(max)){
@@ -4914,7 +4925,11 @@ window.restlagerAuslQty = (function(){
   let value = 0, max = Infinity;
   function clamp(v){ v = Math.max(0, Math.round(Number(v)||0)); if(Number.isFinite(max) && v > max) v = max; return v; }
   function render(){
-    const d = el('restlagerausl-menge-display'); if(d) d.textContent = String(value);
+    const d = el('restlagerausl-menge-display');
+    if(d){
+      const unitD = (S.restlagerSelBatch && S.restlagerSelBatch.item && S.restlagerSelBatch.item.einheit) || 'Stk';
+      d.innerHTML = `${value}<span class="qty-total-unit">${escapeHtml(fmtEinheit(value, unitD))}</span>`;
+    }
     const hint = el('restlagerausl-menge-max');
     if(hint){
       const unit = (S.restlagerSelBatch && S.restlagerSelBatch.item && S.restlagerSelBatch.item.einheit) || 'Stk';
@@ -6698,7 +6713,10 @@ window.todoAddQty = (function(){
   }
   function render(){
     const d = el('todoadd-menge-display');
-    if(d) d.textContent = String(value);
+    if(d){
+      const unitD = (S.todoSelItem && S.todoSelItem.einheit) || 'Stk';
+      d.innerHTML = `${value}<span class="qty-total-unit">${escapeHtml(fmtEinheit(value, unitD))}</span>`;
+    }
     const hint = el('todoadd-menge-max');
     if(hint){
       if(Number.isFinite(max)){
