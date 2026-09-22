@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.45.2</title>
+  <title>Lagerentnahme V1.46.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1692,7 +1692,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.45.2</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.46.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -1819,7 +1819,7 @@
         <div class="tile-title">Artikel verwalten</div>
         <div class="tile-sub">Artikel anlegen & bearbeiten</div>
       </button>
-      <button class="tile admin-only" onclick="openPostkasten()">
+      <button class="tile admin-only" id="postkasten-tile" onclick="openPostkasten()">
         <div class="tile-ico" style="position:relative;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="tile-badge" id="tile-mailbox-badge" style="display:none;">0</span></div>
         <div class="tile-title">Postkasten</div>
         <div class="tile-sub">Meldungen an den Lageristen</div>
@@ -2974,6 +2974,22 @@ window.addEventListener('offline', updateNetBadge);
     }
   };
   applyMode(getMode());
+})();
+
+// ════════════════ POSTKASTEN: VISUELL AUSGRAUEN, WENN DEAKTIVIERT ════════════════
+(function(){
+  if(typeof POSTKASTEN_ENABLED !== 'undefined' && !POSTKASTEN_ENABLED){
+    const grayOut = (elId) => {
+      const e = document.getElementById(elId);
+      if(!e) return;
+      e.style.opacity = '0.4';
+      e.style.filter = 'grayscale(1)';
+      e.style.pointerEvents = 'none';
+      e.title = 'Postkasten ist derzeit deaktiviert';
+    };
+    grayOut('postkasten-tile');
+    grayOut('mailbox-btn');
+  }
 })();
 
 // ════════════════ SETTINGS-PANEL ════════════════
@@ -7544,7 +7560,14 @@ window.unshareTodo = async function(email){
 S.stockAlerts = [];
 S.postkastenTab = 'open';
 
+// ════════════════ POSTKASTEN: EIN/AUS-SCHALTER ════════════════
+// Auf false gesetzt = Postkasten komplett deaktiviert (keine Meldungen, keine
+// Badges, Kachel/Icon ausgegraut). Der gesamte Code bleibt unverändert
+// erhalten – zum Reaktivieren einfach wieder auf true setzen.
+const POSTKASTEN_ENABLED = false;
+
 window.loadStockAlerts = async function(){
+  if(!POSTKASTEN_ENABLED){ S.stockAlerts = []; updateMailboxBadge(); return; }
   try{
     const { data, error } = await S.sb.from('stock_alerts').select('*').order('created_at', { ascending:false }).limit(200);
     if(error){ console.warn('loadStockAlerts', error); S.stockAlerts = []; }
@@ -7555,17 +7578,22 @@ window.loadStockAlerts = async function(){
 };
 
 function updateMailboxBadge(){
+  const b = el('mailbox-badge');
+  const tb = el('tile-mailbox-badge');
+  if(!POSTKASTEN_ENABLED){
+    if(b) b.style.display='none';
+    if(tb) tb.style.display='none';
+    return;
+  }
   const alertCount = S.stockAlerts.filter(a=>!a.resolved).length;
   // Auch Artikel unter Meldeschwelle in Zähler einrechnen
   let underCount = 0;
   try { underCount = (typeof itemsUnderThreshold==='function') ? itemsUnderThreshold().length : 0; } catch(e){}
   const openCount = alertCount + underCount;
-  const b = el('mailbox-badge');
   if(b){
     if(openCount>0){ b.textContent = openCount>99?'99+':String(openCount); b.style.display='flex'; }
     else b.style.display='none';
   }
-  const tb = el('tile-mailbox-badge');
   if(tb){
     if(openCount>0){ tb.textContent = openCount>99?'99+':String(openCount); tb.style.display='flex'; }
     else tb.style.display='none';
@@ -7573,6 +7601,7 @@ function updateMailboxBadge(){
 }
 
 window.openPostkasten = async function(){
+  if(!POSTKASTEN_ENABLED){ toast('Postkasten ist derzeit deaktiviert',''); return; }
   showScreen('screen-postkasten');
   el('postkasten-list').innerHTML = '<div class="empty-state"><p>Lade…</p></div>';
   await Promise.all([ loadStockAlerts(), loadItems() ]);
@@ -7731,6 +7760,7 @@ window.resolveAlert = async function(id){
 };
 
 function subscribeStockAlertsRealtime(){
+  if(!POSTKASTEN_ENABLED) return;
   if(S.stockAlertsChannel){ try{ S.sb.removeChannel(S.stockAlertsChannel); }catch(e){} S.stockAlertsChannel = null; }
   S.stockAlertsChannel = S.sb.channel('stockalerts-changes-'+Date.now())
     .on('postgres_changes', {event:'*', schema:'public', table:'stock_alerts'}, async () => {
