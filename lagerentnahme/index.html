@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.42.1</title>
+  <title>Lagerentnahme V1.43.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -333,6 +333,23 @@
       cursor: pointer;
     }
     .view-mode-btn.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* ── Monatsverbrauch: Schritt-für-Schritt-Filter ── */
+    .verb-wiz-progress {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+      margin-bottom: 16px; font-size: 12px; font-weight: 700; color: #9ca3af;
+    }
+    .verb-wiz-progress .verb-wiz-dot { padding: 4px 2px; }
+    .verb-wiz-progress .verb-wiz-dot.active { color: var(--primary); }
+    .verb-wiz-progress .verb-wiz-dot.done { color: #16a34a; }
+    .verb-wiz-progress .verb-wiz-arrow { color: #d1d5db; }
+    .verb-wiz-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+    .verb-wiz-opt {
+      display: block; width: 100%; text-align: left; padding: 14px 16px;
+      border: 2px solid var(--border); border-radius: 12px; background: var(--surface);
+      font-size: var(--fs-base); font-weight: 600; color: var(--text); cursor: pointer;
+    }
+    .verb-wiz-opt.active { border-color: var(--primary); background: #fdf2f8; color: var(--primary); }
 
     /* ── Artikel verwalten: Desktop-Tabelle ── */
     .artikel-dt-wrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; }
@@ -1665,7 +1682,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.42.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.43.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2287,60 +2304,117 @@
     <div class="spacer"></div>
   </header>
   <main>
-    <div class="form-group">
-      <label class="form-label">Zeitraum</label>
-      <div class="view-mode-ctrl" style="margin-bottom:10px;">
-        <button type="button" class="view-mode-btn" id="verb-mode-month" onclick="setVerbrauchMode('month')">Monat</button>
-        <button type="button" class="view-mode-btn" id="verb-mode-range" onclick="setVerbrauchMode('range')">Zeitraum</button>
-        <button type="button" class="view-mode-btn" id="verb-mode-all" onclick="setVerbrauchMode('all')">Gesamte Historie</button>
+    <!-- ── SCHRITT-FÜR-SCHRITT-FILTER ── -->
+    <div id="verb-wizard">
+      <div class="verb-wiz-progress" id="verb-wiz-progress"></div>
+
+      <!-- Schritt 1: Zeitraum -->
+      <div id="verb-wiz-step-1" class="verb-wiz-step">
+        <div class="form-group">
+          <label class="form-label">1. Zeitraum wählen</label>
+          <div class="view-mode-ctrl" style="margin-bottom:10px;">
+            <button type="button" class="view-mode-btn" id="verb-mode-month" onclick="setVerbrauchMode('month')">Monat</button>
+            <button type="button" class="view-mode-btn" id="verb-mode-range" onclick="setVerbrauchMode('range')">Zeitraum</button>
+            <button type="button" class="view-mode-btn" id="verb-mode-all" onclick="setVerbrauchMode('all')">Gesamte Historie</button>
+          </div>
+          <div id="verb-mode-month-ui" style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(-1)" aria-label="Vorheriger Monat">‹</button>
+            <input type="month" id="inventur-month" style="flex:1;">
+            <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(1)" aria-label="Nächster Monat">›</button>
+          </div>
+          <div id="verb-mode-range-ui" style="display:none;gap:8px;align-items:center;">
+            <input type="month" id="verb-range-from" style="flex:1;">
+            <span style="color:#6b7280;">–</span>
+            <input type="month" id="verb-range-to" style="flex:1;">
+          </div>
+          <div id="verb-mode-all-ui" style="display:none;">
+            <div class="helper">Zeigt alle Entnahmen ohne zeitliche Einschränkung.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="goHome()">Abbrechen</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="verbWizNext()">Weiter</button>
+        </div>
       </div>
-      <div id="verb-mode-month-ui" style="display:flex;gap:8px;align-items:center;">
-        <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(-1)" aria-label="Vorheriger Monat">‹</button>
-        <input type="month" id="inventur-month" style="flex:1;" onchange="renderVerbrauch()">
-        <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(1)" aria-label="Nächster Monat">›</button>
+
+      <!-- Schritt 2: Baustelle -->
+      <div id="verb-wiz-step-2" class="verb-wiz-step" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">2. Baustelle wählen</label>
+          <div id="verb-wiz-site-list" class="verb-wiz-list"></div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="verbWizBack()">Zurück</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="verbWizNext()">Weiter</button>
+        </div>
       </div>
-      <div id="verb-mode-range-ui" style="display:none;gap:8px;align-items:center;">
-        <input type="month" id="verb-range-from" style="flex:1;" onchange="renderVerbrauch()">
-        <span style="color:#6b7280;">–</span>
-        <input type="month" id="verb-range-to" style="flex:1;" onchange="renderVerbrauch()">
+
+      <!-- Schritt 3: Nutzer -->
+      <div id="verb-wiz-step-3" class="verb-wiz-step" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">3. Nutzer wählen</label>
+          <div id="verb-wiz-user-list" class="verb-wiz-list"></div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="verbWizBack()">Zurück</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="verbWizNext()">Weiter</button>
+        </div>
       </div>
-      <div id="verb-mode-all-ui" style="display:none;">
-        <div class="helper">Zeigt alle Entnahmen ohne zeitliche Einschränkung. Am besten mit einer Baustelle unten filtern, um die komplette Historie eines Bauvorhabens zu sehen.</div>
+
+      <!-- Schritt 4: Artikel -->
+      <div id="verb-wiz-step-4" class="verb-wiz-step" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">4. Artikel wählen</label>
+          <div class="search-wrap" style="margin-bottom:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="verb-wiz-item-search" placeholder="Artikel suchen…" oninput="renderVerbWizOptionList('verb-wiz-item-list','verb-item',this.value)" autocomplete="off">
+          </div>
+          <div id="verb-wiz-item-list" class="verb-wiz-list"></div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-outline" style="flex:1;" onclick="verbWizBack()">Zurück</button>
+          <button class="btn btn-primary" style="flex:2;" onclick="verbWizNext()">Ergebnis anzeigen</button>
+        </div>
       </div>
+
+      <!-- Reine Datenhalter, unsichtbar – die eigentliche Filter-/Render-Logik
+           liest weiterhin aus diesen <select>-Werten. -->
+      <select id="verb-site" style="display:none;"><option value="">Alle Baustellen</option></select>
+      <select id="verb-user" style="display:none;"><option value="">Alle Nutzer</option></select>
+      <select id="verb-item" style="display:none;"><option value="">Alle Artikel</option></select>
     </div>
-    <div class="filter-bar" style="padding:0;margin-bottom:12px;">
-      <div class="filter-row">
-        <select id="verb-site" onchange="renderVerbrauch()"><option value="">Alle Baustellen</option></select>
-        <select id="verb-user" onchange="renderVerbrauch()"><option value="">Alle Nutzer</option></select>
-      </div>
-      <div class="filter-row">
-        <select id="verb-item" onchange="renderVerbrauch()" style="flex:1;"><option value="">Alle Artikel</option></select>
-      </div>
-    </div>
-    <div class="stats-row" id="verbrauch-stats">…</div>
-    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#444;cursor:pointer;">
-        <input type="checkbox" id="verbrauch-show-all" onchange="renderVerbrauch()" style="width:18px;height:18px;">
-        Auch Artikel ohne Entnahmen zeigen
-      </label>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:center;margin:6px 0 14px;">
-      <button type="button" class="btn btn-primary" id="verbrauch-export-pdf" onclick="exportVerbrauchPDF()" style="flex:1;max-width:220px;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span>PDF</span>
+
+    <!-- ── ERGEBNIS (erst nach Abschluss des Assistenten sichtbar) ── -->
+    <div id="verb-results" style="display:none;">
+      <button type="button" class="btn btn-outline btn-full" style="margin-bottom:14px;" onclick="verbWizRestart()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:6px;"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/></svg>
+        Filter ändern
       </button>
-      <button type="button" class="btn btn-primary" id="verbrauch-export-xlsx" onclick="exportVerbrauchXLSX()" style="flex:1;max-width:220px;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l3 3 3-3"/><path d="M12 16V10"/></svg>
-        <span>Excel</span>
-      </button>
+      <div class="stats-row" id="verbrauch-stats">…</div>
+      <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#444;cursor:pointer;">
+          <input type="checkbox" id="verbrauch-show-all" onchange="renderVerbrauch()" style="width:18px;height:18px;">
+          Auch Artikel ohne Entnahmen zeigen
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin:6px 0 14px;">
+        <button type="button" class="btn btn-primary" id="verbrauch-export-pdf" onclick="exportVerbrauchPDF()" style="flex:1;max-width:220px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>PDF</span>
+        </button>
+        <button type="button" class="btn btn-primary" id="verbrauch-export-xlsx" onclick="exportVerbrauchXLSX()" style="flex:1;max-width:220px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l3 3 3-3"/><path d="M12 16V10"/></svg>
+          <span>Excel</span>
+        </button>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin:0 0 14px;">
+        <button type="button" class="btn btn-secondary" id="lagerwert-export-pdf" onclick="exportLagerwertPDF()" style="flex:1;max-width:340px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+          <span>Lagerbestand mit Wert (PDF)</span>
+        </button>
+      </div>
+      <div id="inventur-list"></div>
     </div>
-    <div style="display:flex;gap:10px;justify-content:center;margin:0 0 14px;">
-      <button type="button" class="btn btn-secondary" id="lagerwert-export-pdf" onclick="exportLagerwertPDF()" style="flex:1;max-width:340px;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
-        <span>Lagerbestand mit Wert (PDF)</span>
-      </button>
-    </div>
-    <div id="inventur-list"></div>
   </main>
 </div>
 
@@ -5344,10 +5418,75 @@ window.openInventur=async function(){
   if(el('verb-site')) el('verb-site').value = '';
   if(el('verb-user')) el('verb-user').value = '';
   if(el('verb-item')) el('verb-item').value = '';
+  el('verb-results').style.display = 'none';
+  el('verb-wizard').style.display = 'block';
   await Promise.all([ loadItems(), loadJournalForVerbrauch(), (typeof loadAppUsers==='function'?loadAppUsers():Promise.resolve()) ]);
   populateVerbrauchFilters();
-  renderVerbrauch();
+  showVerbWizStep(1);
 };
+
+// ── Schritt-für-Schritt-Assistent: Zeitraum → Baustelle → Nutzer → Artikel ──
+// Bewusst so gebaut, dass jede Filter-Änderung wieder von vorne durchklickt
+// wird (kein Direkt-Sprung zu einem einzelnen Filter) – das war explizit so
+// gewünscht, um die Bedienung klarer/geführter zu machen.
+const VERB_WIZ_LABELS = ['Zeitraum','Baustelle','Nutzer','Artikel'];
+window.verbWizNext = function(){
+  const step = S._verbWizStep || 1;
+  if(step < 4) showVerbWizStep(step+1);
+  else finishVerbWizard();
+};
+window.verbWizBack = function(){
+  const step = S._verbWizStep || 1;
+  if(step > 1) showVerbWizStep(step-1);
+};
+window.verbWizRestart = function(){
+  el('verb-results').style.display = 'none';
+  el('verb-wizard').style.display = 'block';
+  showVerbWizStep(1);
+};
+function showVerbWizStep(n){
+  S._verbWizStep = n;
+  for(let i=1;i<=4;i++){
+    const p = el('verb-wiz-step-'+i);
+    if(p) p.style.display = (i===n) ? 'block' : 'none';
+  }
+  el('verb-wiz-progress').innerHTML = VERB_WIZ_LABELS.map((label,i)=>{
+    const idx = i+1;
+    const cls = idx<n ? 'done' : (idx===n ? 'active' : '');
+    const sep = idx<4 ? '<span class="verb-wiz-arrow">›</span>' : '';
+    return `<span class="verb-wiz-dot ${cls}">${idx}. ${escapeHtml(label)}</span>${sep}`;
+  }).join('');
+  if(n===2) renderVerbWizOptionList('verb-wiz-site-list','verb-site');
+  if(n===3) renderVerbWizOptionList('verb-wiz-user-list','verb-user');
+  if(n===4){ el('verb-wiz-item-search').value=''; renderVerbWizOptionList('verb-wiz-item-list','verb-item'); }
+}
+// Baut die anklickbare Options-Liste aus den (unsichtbaren) <select>-Elementen,
+// die weiterhin als Datenhalter für die bestehende Filter-/Render-Logik dienen.
+window.renderVerbWizOptionList = function(containerId, selectId, searchTerm){
+  const container = el(containerId);
+  const select = el(selectId);
+  if(!container || !select) return;
+  const q = (searchTerm||'').toLowerCase().trim();
+  const current = select.value;
+  const options = Array.from(select.options).filter(o => !q || o.textContent.toLowerCase().includes(q) || o.value==='');
+  if(!options.length){ container.innerHTML = '<div class="helper">Keine Treffer</div>'; return; }
+  container.innerHTML = options.map(o => {
+    const active = o.value === current;
+    return `<button type="button" class="verb-wiz-opt ${active?'active':''}" data-val="${escapeHtml(o.value)}">${escapeHtml(o.textContent)}</button>`;
+  }).join('');
+  container.querySelectorAll('.verb-wiz-opt').forEach(btn => {
+    btn.onclick = () => {
+      select.value = btn.dataset.val;
+      container.querySelectorAll('.verb-wiz-opt').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+};
+function finishVerbWizard(){
+  el('verb-wizard').style.display = 'none';
+  el('verb-results').style.display = 'block';
+  renderVerbrauch();
+}
 // Nur die Button/UI-Sichtbarkeit setzen, ohne (wie setVerbrauchMode) direkt
 // neu zu rendern – wird beim ersten Öffnen vor dem Laden der Daten gebraucht.
 function setVerbrauchModeButtonsOnly(mode){
