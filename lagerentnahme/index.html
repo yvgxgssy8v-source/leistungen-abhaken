@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.44.0</title>
+  <title>Lagerentnahme V1.45.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1682,7 +1682,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.44.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.45.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -3882,83 +3882,8 @@ window.renderEntnahmeList=function(){
     c.onclick=()=> selectEntnahmeItem(c.dataset.id);
   });
 };
-// Hart verdrahtete Spar-Tipps: teurer Artikel → günstigere Alternative
-const CHEAPER_ALTERNATIVE = {
-  'MAT-0003': 'MAT-0001', // Klebeband Gold 30 mm → Krepp 30 mm
-  'MAT-0004': 'MAT-0002'  // Klebeband Gold 50 mm → Krepp 50 mm
-};
-
-function showCheaperAlternativeHint(item, onProceed, onAbort){
-  const altId = CHEAPER_ALTERNATIVE[item.id];
-  if(!altId) { onProceed(); return; }
-  const alt = (S.items||[]).find(i=>i.id===altId);
-  if(!alt || alt.aktiv===false) { onProceed(); return; }
-  const teuerPreis = Number(item.unit_price)||0;
-  const guenstigPreis = Number(alt.unit_price)||0;
-  if(teuerPreis<=0 || guenstigPreis<=0 || guenstigPreis>=teuerPreis) { onProceed(); return; }
-  const aufpreisProz = Math.round(((teuerPreis-guenstigPreis)/guenstigPreis)*100);
-  const ersparnisProStk = (teuerPreis-guenstigPreis).toFixed(2).replace('.', ',');
-
-  // Keyframes einmalig
-  if(!document.getElementById('cheaper-alt-style')){
-    const st = document.createElement('style');
-    st.id='cheaper-alt-style';
-    st.textContent =
-      '@keyframes pkPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.05);opacity:1}100%{transform:scale(1);opacity:1}}'+
-      '@keyframes pkFade{from{opacity:0}to{opacity:1}}'+
-      '@keyframes pkBulb{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.12)}}'+
-      '@keyframes pkShine{0%{background-position:-200% 0}100%{background-position:200% 0}}';
-    document.head.appendChild(st);
-  }
-
-  let overlay = document.getElementById('cheaper-alt-modal');
-  if(overlay) overlay.remove();
-  overlay = document.createElement('div');
-  overlay.id = 'cheaper-alt-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;animation:pkFade .25s ease-out;';
-  overlay.innerHTML =
-    '<div style="background:#fff;border-radius:22px;max-width:520px;width:100%;padding:28px 26px 24px;box-shadow:0 25px 70px rgba(0,0,0,.35);position:relative;animation:pkPop .4s cubic-bezier(.34,1.56,.64,1);overflow:hidden;">'+
-      '<div style="position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:pkShine 3s linear infinite;"></div>'+
-      '<button type="button" id="cheaper-alt-close" aria-label="Schliessen" style="position:absolute;top:14px;right:14px;width:38px;height:38px;border:none;background:#f3f4f6;border-radius:50%;font-size:22px;font-weight:700;color:#6b7280;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>'+
-      '<div style="display:flex;align-items:center;gap:14px;margin:6px 0 18px;">'+
-        '<div style="width:56px;height:56px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;animation:pkBulb 1.6s ease-in-out infinite;box-shadow:0 4px 12px rgba(251,191,36,.35);">💡</div>'+
-        '<div>'+
-          '<div style="font-size:22px;font-weight:800;color:#111827;line-height:1.2;">Moment mal</div>'+
-          '<div style="font-size:14px;color:#6b7280;margin-top:2px;">Spar-Tipp aus dem Lager</div>'+
-        '</div>'+
-      '</div>'+
-      '<div style="font-size:17px;color:#374151;line-height:1.5;margin-bottom:18px;">'+
-        'Du nimmst gerade <b style="color:#b41c4f;">'+escapeHtml(item.name)+'</b> für <b style="color:#b41c4f;">'+teuerPreis.toFixed(2).replace('.', ',')+' €</b>.'+
-      '</div>'+
-      '<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:16px;padding:18px;margin-bottom:18px;position:relative;">'+
-        '<div style="position:absolute;top:-12px;left:16px;background:#16a34a;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.5px;">GÜNSTIGER</div>'+
-        '<div style="font-size:19px;font-weight:800;color:#14532d;margin-top:4px;">'+escapeHtml(alt.name)+'</div>'+
-        '<div style="font-size:24px;font-weight:800;color:#16a34a;margin-top:6px;">'+guenstigPreis.toFixed(2).replace('.', ',')+' €</div>'+
-        '<div style="font-size:15px;color:#166534;margin-top:10px;line-height:1.4;">Spart <b>'+ersparnisProStk+' €</b> pro Stück — das ist <b style="font-size:18px;color:#16a34a;">'+aufpreisProz+' % günstiger</b></div>'+
-      '</div>'+
-      '<div style="font-size:15px;color:#4b5563;line-height:1.5;margin-bottom:20px;text-align:center;">In <b>90 %</b> der Fälle reicht das Krepp völlig aus.<br>Wirklich Gold nötig? Dann oben mit × schliessen.</div>'+
-      '<button type="button" id="cheaper-alt-switch" style="width:100%;padding:16px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;margin-bottom:10px;box-shadow:0 6px 16px rgba(22,163,74,.35);">✅ Doch '+escapeHtml(alt.name)+' nehmen</button>'+
-      '<button type="button" id="cheaper-alt-keep" style="width:100%;padding:12px;background:transparent;color:#9ca3af;border:1px dashed #d1d5db;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;">Trotzdem '+escapeHtml(item.name)+' nehmen</button>'+
-    '</div>';
-  document.body.appendChild(overlay);
-  const closeAbort=()=>{ overlay.remove(); if(typeof onAbort==='function') onAbort(); };
-  document.getElementById('cheaper-alt-close').onclick = closeAbort;
-  document.getElementById('cheaper-alt-keep').onclick = ()=>{ overlay.remove(); onProceed(); };
-  document.getElementById('cheaper-alt-switch').onclick = ()=>{ overlay.remove(); if(typeof onAbort==='function') onAbort(); selectEntnahmeItem(alt.id); };
-  overlay.addEventListener('click', e => { if(e.target===overlay) closeAbort(); });
-}
-
-
 function selectEntnahmeItem(id){
   const item=S.items.find(i=>i.id===id); if(!item) return;
-  // Spar-Hinweis nur für Vorarbeiter
-  if(!isAdmin() && CHEAPER_ALTERNATIVE[id]){
-    showCheaperAlternativeHint(item,
-      ()=> _doSelectEntnahmeItem(id),
-      ()=>{ /* X / Overlay = abbrechen, kein Step2 */ }
-    );
-    return;
-  }
   _doSelectEntnahmeItem(id);
 }
 function _doSelectEntnahmeItem(id){
@@ -5428,7 +5353,7 @@ window.openInventur=async function(){
   if(el('verb-item')) el('verb-item').value = '';
   el('verb-results').style.display = 'none';
   el('verb-wizard').style.display = 'block';
-  await Promise.all([ loadItems(), loadJournalForVerbrauch(), (typeof loadAppUsers==='function'?loadAppUsers():Promise.resolve()) ]);
+  await Promise.all([ loadItems(), loadJournalForVerbrauch(), (typeof loadAppUsers==='function'?loadAppUsers():Promise.resolve()), (typeof loadBauplanProjects==='function'?loadBauplanProjects():Promise.resolve()) ]);
   populateVerbrauchFilters();
   showVerbWizStep(1);
 };
@@ -5508,14 +5433,24 @@ function setVerbrauchModeButtonsOnly(mode){
 
 function populateVerbrauchFilters(){
   const rows = S._verbrauchRows || [];
-  // Baustellen
-  const sites = [...new Set(rows.map(r => (r.site||'').trim()).filter(Boolean))]
-    .sort((a,b)=>a.localeCompare(b,'de'));
+  // Baustellen: für jeden in der Historie tatsächlich vorkommenden Namen zuerst
+  // exakt in den Bauplan-Projekten nachschlagen (garantiert korrekte Nummer,
+  // gleicher Ansatz wie beim normalen Baustellen-Picker) – nur wenn das nicht
+  // klappt (z.B. alte/archivierte Vorhaben), auf den unscharfen Abgleich
+  // zurückfallen.
+  const journalSites = [...new Set(rows.map(r => (r.site||'').trim()).filter(Boolean))];
+  const bauplanByName = new Map((S.bauplanProjects||[]).map(p => [p.name, p]));
+  const sites = journalSites.map(s => {
+    const p = bauplanByName.get(s);
+    const label = p ? (p.number ? `${p.number} · ${p.name}` : p.name)
+                     : ((typeof siteLabel==='function') ? siteLabel(s) : s);
+    return { value: s, label };
+  }).sort((a,b)=>a.label.localeCompare(b.label,'de'));
   const sel1 = el('verb-site'); if(sel1){
     const cur = sel1.value;
     sel1.innerHTML = '<option value="">Alle Baustellen</option>' +
-      sites.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml((typeof siteLabel==='function')?siteLabel(s):s)}</option>`).join('');
-    if(sites.includes(cur)) sel1.value = cur;
+      sites.map(x=>`<option value="${escapeHtml(x.value)}">${escapeHtml(x.label)}</option>`).join('');
+    if(journalSites.includes(cur)) sel1.value = cur;
   }
   // Nutzer
   const users = [...new Set(rows.map(r => (r.user_email||'').trim()).filter(Boolean))]
