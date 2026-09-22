@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.46.0</title>
+  <title>Lagerentnahme V1.46.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1692,7 +1692,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.46.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.46.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2795,6 +2795,14 @@ const OFFICE_LON = 12.9386267;
 const OFFICE_RADIUS_M = 200;
 
 // kurzer Helfer
+// ════════════════ POSTKASTEN: EIN/AUS-SCHALTER ════════════════
+// Auf false gesetzt = Postkasten komplett deaktiviert (keine Meldungen, keine
+// Badges, Kachel/Icon ausgegraut). Der gesamte Code bleibt unverändert
+// erhalten – zum Reaktivieren einfach wieder auf true setzen.
+// GANZ AM ANFANG definiert, damit keine spätere Stelle im Code (auch nicht
+// beim allerersten Ausführen) versehentlich vorher darauf zugreift.
+const POSTKASTEN_ENABLED = false;
+
 const el = id => document.getElementById(id);
 
 // ════════════════ KONTEXT-ABHÄNGIGE "ZURÜCK"-BUTTONS ════════════════
@@ -7560,11 +7568,7 @@ window.unshareTodo = async function(email){
 S.stockAlerts = [];
 S.postkastenTab = 'open';
 
-// ════════════════ POSTKASTEN: EIN/AUS-SCHALTER ════════════════
-// Auf false gesetzt = Postkasten komplett deaktiviert (keine Meldungen, keine
-// Badges, Kachel/Icon ausgegraut). Der gesamte Code bleibt unverändert
-// erhalten – zum Reaktivieren einfach wieder auf true setzen.
-const POSTKASTEN_ENABLED = false;
+// (POSTKASTEN_ENABLED wird ganz am Anfang des Skripts definiert, siehe oben)
 
 window.loadStockAlerts = async function(){
   if(!POSTKASTEN_ENABLED){ S.stockAlerts = []; updateMailboxBadge(); return; }
