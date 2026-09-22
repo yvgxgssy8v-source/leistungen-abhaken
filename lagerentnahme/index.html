@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.41.1</title>
+  <title>Lagerentnahme V1.42.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1654,7 +1654,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.41.1</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.42.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2277,11 +2277,24 @@
   </header>
   <main>
     <div class="form-group">
-      <label class="form-label">Monat</label>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <label class="form-label">Zeitraum</label>
+      <div class="view-mode-ctrl" style="margin-bottom:10px;">
+        <button type="button" class="view-mode-btn" id="verb-mode-month" onclick="setVerbrauchMode('month')">Monat</button>
+        <button type="button" class="view-mode-btn" id="verb-mode-range" onclick="setVerbrauchMode('range')">Zeitraum</button>
+        <button type="button" class="view-mode-btn" id="verb-mode-all" onclick="setVerbrauchMode('all')">Gesamte Historie</button>
+      </div>
+      <div id="verb-mode-month-ui" style="display:flex;gap:8px;align-items:center;">
         <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(-1)" aria-label="Vorheriger Monat">‹</button>
         <input type="month" id="inventur-month" style="flex:1;" onchange="renderVerbrauch()">
         <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(1)" aria-label="Nächster Monat">›</button>
+      </div>
+      <div id="verb-mode-range-ui" style="display:none;gap:8px;align-items:center;">
+        <input type="month" id="verb-range-from" style="flex:1;" onchange="renderVerbrauch()">
+        <span style="color:#6b7280;">–</span>
+        <input type="month" id="verb-range-to" style="flex:1;" onchange="renderVerbrauch()">
+      </div>
+      <div id="verb-mode-all-ui" style="display:none;">
+        <div class="helper">Zeigt alle Entnahmen ohne zeitliche Einschränkung. Am besten mit einer Baustelle unten filtern, um die komplette Historie eines Bauvorhabens zu sehen.</div>
       </div>
     </div>
     <div class="filter-bar" style="padding:0;margin-bottom:12px;">
@@ -5263,12 +5276,57 @@ window.selectZugangItem=function(id){
 };
 
 // ════════════════ MONATSVERBRAUCH (ehemals Inventur) ════════════════
-// Reine Anzeige: aggregierte Entnahmen pro Artikel im gewählten Monat,
-// kumuliert über alle Baustellen. Keine Bestandsänderung.
+// Reine Anzeige: aggregierte Entnahmen pro Artikel im gewählten Zeitraum,
+// kumuliert über alle Baustellen (bzw. gefiltert). Keine Bestandsänderung.
+window.setVerbrauchMode = function(mode){
+  S._verbrauchMode = mode;
+  ['month','range','all'].forEach(m=>{
+    const btn = el('verb-mode-'+m);
+    if(btn) btn.classList.toggle('active', m===mode);
+    const ui = el('verb-mode-'+m+'-ui');
+    if(ui) ui.style.display = (m===mode) ? (m==='month'?'flex':(m==='range'?'flex':'block')) : 'none';
+  });
+  renderVerbrauch();
+};
+
+// Ermittelt Start/Ende (Timestamps) + Anzeige-Label + Export-Dateiname-Schlüssel
+// für den aktuell gewählten Zeitraum-Modus. Zentrale Stelle, die sowohl die
+// Bildschirmanzeige als auch der Excel/PDF-Export nutzen.
+function getVerbrauchTimeRange(){
+  const mode = S._verbrauchMode || 'month';
+  if(mode === 'range'){
+    const vFrom = el('verb-range-from')?.value;
+    const vTo = el('verb-range-to')?.value;
+    if(!vFrom || !vTo) return null;
+    const [y1,m1] = vFrom.split('-').map(Number);
+    const [y2,m2] = vTo.split('-').map(Number);
+    const start = new Date(y1, m1-1, 1, 0,0,0,0).getTime();
+    const end   = new Date(y2, m2,   1, 0,0,0,0).getTime(); // exklusiv: 1. des Folgemonats von "bis"
+    const fromName = new Date(y1, m1-1, 1).toLocaleDateString('de-DE',{month:'long', year:'numeric'});
+    const toName   = new Date(y2, m2-1, 1).toLocaleDateString('de-DE',{month:'long', year:'numeric'});
+    const label = start<end ? `${fromName} – ${toName}` : fromName;
+    return { start: Math.min(start,end), end: Math.max(start,end), label, key: `${vFrom}_bis_${vTo}` };
+  }
+  if(mode === 'all'){
+    return { start: -Infinity, end: Infinity, label: 'Gesamte Historie', key: 'gesamt' };
+  }
+  // Standard: einzelner Monat
+  const v = el('inventur-month')?.value; if(!v) return null;
+  const [y,m] = v.split('-').map(Number);
+  const start = new Date(y, m-1, 1, 0,0,0,0).getTime();
+  const end   = new Date(y, m,   1, 0,0,0,0).getTime();
+  const label = new Date(y, m-1, 1).toLocaleDateString('de-DE',{month:'long', year:'numeric'});
+  return { start, end, label, key: v };
+}
+
 window.openInventur=async function(){
   showScreen('screen-inventur');
   const now=new Date();
   el('inventur-month').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  el('verb-range-from').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  el('verb-range-to').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  S._verbrauchMode = 'month';
+  setVerbrauchModeButtonsOnly('month');
   el('verbrauch-stats').textContent = 'Lade…';
   el('inventur-list').innerHTML = '';
   // Filter zurücksetzen
@@ -5279,6 +5337,16 @@ window.openInventur=async function(){
   populateVerbrauchFilters();
   renderVerbrauch();
 };
+// Nur die Button/UI-Sichtbarkeit setzen, ohne (wie setVerbrauchMode) direkt
+// neu zu rendern – wird beim ersten Öffnen vor dem Laden der Daten gebraucht.
+function setVerbrauchModeButtonsOnly(mode){
+  ['month','range','all'].forEach(m=>{
+    const btn = el('verb-mode-'+m);
+    if(btn) btn.classList.toggle('active', m===mode);
+    const ui = el('verb-mode-'+m+'-ui');
+    if(ui) ui.style.display = (m===mode) ? (m==='month'?'flex':(m==='range'?'flex':'block')) : 'none';
+  });
+}
 
 function populateVerbrauchFilters(){
   const rows = S._verbrauchRows || [];
@@ -5337,7 +5405,9 @@ window.shiftVerbrauchMonth = function(delta){
 
 async function loadJournalForVerbrauch(){
   try{
-    const since = new Date(); since.setMonth(since.getMonth()-24); since.setDate(1); since.setHours(0,0,0,0);
+    // 10 Jahre zurück = praktisch "gesamte Historie" für jeden realistischen
+    // Anwendungsfall, ohne eine wirklich unbegrenzte Abfrage zu fahren.
+    const since = new Date(); since.setFullYear(since.getFullYear()-10); since.setDate(1); since.setHours(0,0,0,0);
     const { data, error } = await S.sb.from('journal')
       .select('item_id,type,qty,ts,site,user_email')
       .gte('ts', since.toISOString())
@@ -5352,10 +5422,8 @@ async function loadJournalForVerbrauch(){
 }
 
 window.renderVerbrauch = function(){
-  const v = el('inventur-month').value; if(!v) return;
-  const [y,m] = v.split('-').map(Number);
-  const start = new Date(y, m-1, 1, 0,0,0,0).getTime();
-  const end   = new Date(y, m,   1, 0,0,0,0).getTime();
+  const range = getVerbrauchTimeRange(); if(!range) return;
+  const { start, end, label: periodName } = range;
 
   const filt = getVerbrauchFilterFn();
   const rows = (S._verbrauchRows||[]).filter(r=>{
@@ -5377,7 +5445,6 @@ window.renderVerbrauch = function(){
   list.sort((a,b) => (b.qty - a.qty) || (a.item.name||'').localeCompare(b.item.name||'','de'));
 
   const totalBuch = rows.length;
-  const monatName = new Date(y, m-1, 1).toLocaleDateString('de-DE',{month:'long', year:'numeric'});
   const betroffen = list.filter(x=>x.qty>0).length;
   const fmtEUR = n => n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
   let monatsKosten = 0;
@@ -5387,11 +5454,11 @@ window.renderVerbrauch = function(){
   }
   const kostenTxt = monatsKosten>0 ? ` · Kosten: ${fmtEUR(monatsKosten)}` : '';
   el('verbrauch-stats').textContent =
-    `${monatName}: ${totalBuch} Entnahme${totalBuch===1?'':'n'}, ${betroffen} Artikel betroffen${kostenTxt}`;
+    `${periodName}: ${totalBuch} Entnahme${totalBuch===1?'':'n'}, ${betroffen} Artikel betroffen${kostenTxt}`;
 
   const cont = el('inventur-list');
   if(!list.length){
-    cont.innerHTML = emptyState('Keine Entnahmen in diesem Monat');
+    cont.innerHTML = emptyState('Keine Entnahmen in diesem Zeitraum');
     return;
   }
 
@@ -5439,12 +5506,9 @@ function loadScriptOnce(src){
   });
 }
 function buildVerbrauchExport(){
-  const v = el('inventur-month').value;
-  if(!v) throw new Error('Bitte Monat wählen');
-  const [y,m] = v.split('-').map(Number);
-  const start = new Date(y, m-1, 1, 0,0,0,0).getTime();
-  const end   = new Date(y, m,   1, 0,0,0,0).getTime();
-  const monatName = new Date(y, m-1, 1).toLocaleDateString('de-DE',{month:'long', year:'numeric'});
+  const range = getVerbrauchTimeRange();
+  if(!range) throw new Error('Bitte Zeitraum wählen');
+  const { start, end, label: monatName, key } = range;
 
   const filt = (typeof getVerbrauchFilterFn==='function') ? getVerbrauchFilterFn() : (()=>true);
   const rows = (S._verbrauchRows||[]).filter(r=>{
@@ -5500,7 +5564,7 @@ function buildVerbrauchExport(){
     .map(([site, m])=> ({ site, ...toRows(m) }))
     .sort((a,b)=> (b.gesamt-a.gesamt) || a.site.localeCompare(b.site,'de'));
 
-  return { monatName, monatKey: v, total, sites, entnahmen: rows.length, filterTxt };
+  return { monatName, monatKey: key, total, sites, entnahmen: rows.length, filterTxt };
 }
 
 window.exportVerbrauchXLSX = async function(){
