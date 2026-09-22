@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.43.0</title>
+  <title>Lagerentnahme V1.43.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1682,7 +1682,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.43.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.43.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2312,10 +2312,10 @@
       <div id="verb-wiz-step-1" class="verb-wiz-step">
         <div class="form-group">
           <label class="form-label">1. Zeitraum wählen</label>
-          <div class="view-mode-ctrl" style="margin-bottom:10px;">
-            <button type="button" class="view-mode-btn" id="verb-mode-month" onclick="setVerbrauchMode('month')">Monat</button>
-            <button type="button" class="view-mode-btn" id="verb-mode-range" onclick="setVerbrauchMode('range')">Zeitraum</button>
-            <button type="button" class="view-mode-btn" id="verb-mode-all" onclick="setVerbrauchMode('all')">Gesamte Historie</button>
+          <div class="verb-wiz-list" style="margin-bottom:10px;">
+            <button type="button" class="verb-wiz-opt active" id="verb-mode-month" onclick="setVerbrauchMode('month')">Monat</button>
+            <button type="button" class="verb-wiz-opt" id="verb-mode-range" onclick="setVerbrauchMode('range')">Zeitraum (mehrere Monate)</button>
+            <button type="button" class="verb-wiz-opt" id="verb-mode-all" onclick="setVerbrauchMode('all')">Gesamte Historie</button>
           </div>
           <div id="verb-mode-month-ui" style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="btn btn-outline" style="min-width:44px;padding:8px 10px;" onclick="shiftVerbrauchMonth(-1)" aria-label="Vorheriger Monat">‹</button>
