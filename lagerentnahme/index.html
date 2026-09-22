@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.42.0</title>
+  <title>Lagerentnahme V1.42.1</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -166,7 +166,7 @@
 
     /* ── FORMS ── */
     input[type=email], input[type=password], input[type=search], input[type=text],
-    input[type=number], input[type=file], select, textarea {
+    input[type=number], input[type=month], input[type=file], select, textarea {
       width: 100%;
       padding: 12px 14px;
       border: 2px solid var(--border);
@@ -179,6 +179,17 @@
       font-family: inherit;
       min-height: var(--touch-min);
       -webkit-appearance: none;
+    }
+    /* Safari/iOS rendern die Segmente von type="month" sonst in einer eigenen,
+       kleineren System-Schrift statt der Seiten-Schrift zu übernehmen. */
+    input[type=month]::-webkit-datetime-edit,
+    input[type=month]::-webkit-datetime-edit-text,
+    input[type=month]::-webkit-datetime-edit-month-field,
+    input[type=month]::-webkit-datetime-edit-year-field {
+      font-family: inherit;
+      font-size: var(--fs-base);
+      font-weight: 600;
+      color: var(--text);
     }
     textarea { min-height: 80px; resize: vertical; line-height: 1.4; }
     input:focus, select:focus, textarea:focus { border-color: var(--primary); background: var(--surface); }
@@ -1654,7 +1665,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.42.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.42.1</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
