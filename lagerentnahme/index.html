@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.47.0</title>
+  <title>Lagerentnahme V1.48.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1692,7 +1692,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.47.0</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.48.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -1779,7 +1779,7 @@
       <p>Offline – Buchungen werden gespeichert und später synchronisiert.</p>
     </div>
     <div class="tile-grid">
-      <button class="tile" onclick="openEntnahme()">
+      <button class="tile" onclick="askTodoBeforeEntnahme()">
         <div class="tile-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14l-1 11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></div>
         <div class="tile-title">Mitnehmen</div>
         <div class="tile-sub">Entnahme für eine Baustelle buchen</div>
@@ -2628,6 +2628,25 @@
   </div>
 </div>
 
+<!-- Nachfrage vor "Mitnehmen": wurde über die To-Do-Liste reserviert? -->
+<div id="confirm-todo-hint" class="modal" style="display:none;">
+  <div class="modal-overlay" onclick="closeTodoHint()"></div>
+  <div class="modal-sheet confirm-sheet">
+    <div class="confirm-icon" style="background:#fdf2f8;color:var(--primary);">
+      <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    </div>
+    <h2 class="confirm-title">Material reserviert?</h2>
+    <div class="confirm-body" style="text-align:center;">
+      Wurde das Material vorher über die <strong>To-Do-Liste</strong> reserviert?<br><br>
+      Wenn ja, bitte dort bei der Reservierung auf <strong>„Mitnehmen“</strong> tippen.
+    </div>
+    <div class="confirm-actions" style="flex-direction:column;">
+      <button class="btn btn-primary" onclick="todoHintYes()">Ja – zur To-Do-Liste</button>
+      <button class="btn btn-secondary" onclick="todoHintNo()">Nein – direkt mitnehmen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lösch-Bestätigung -->
 <div id="confirm-del" class="modal" style="display:none;">
   <div class="modal-overlay" onclick="closeConfirmDel()"></div>
@@ -2811,6 +2830,22 @@ const OFFICE_RADIUS_M = 200;
 // kurzer Helfer
 
 const el = id => document.getElementById(id);
+
+// ════════════════ NACHFRAGE VOR "MITNEHMEN" (To-Do-Reservierung) ════════════════
+// Die Home-Kachel "Mitnehmen" fragt zuerst, ob das Material über die To-Do-Liste
+// reserviert wurde. Ja → To-Do-Liste (dort bei der Reservierung "Mitnehmen" tippen),
+// Nein → normaler Mitnehmen-Screen. Tippen neben das Fenster = abbrechen.
+window.askTodoBeforeEntnahme = function(){
+  const m = el('confirm-todo-hint');
+  if(!m){ openEntnahme(); return; }   // Sicherheitsnetz: nie die Funktion blockieren
+  m.style.display = 'flex';
+};
+window.closeTodoHint = function(){
+  const m = el('confirm-todo-hint');
+  if(m) m.style.display = 'none';
+};
+window.todoHintYes = function(){ closeTodoHint(); openTodos(); };
+window.todoHintNo  = function(){ closeTodoHint(); openEntnahme(); };
 
 // ════════════════ KONTEXT-ABHÄNGIGE "ZURÜCK"-BUTTONS ════════════════
 // Diese Screens haben intern mehrere Schritte/Ansichten (Step1/Step2 oder
