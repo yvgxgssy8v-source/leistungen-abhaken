@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Lagerentnahme V1.46.2</title>
+  <title>Lagerentnahme V1.47.0</title>
 
   <meta name="theme-color" content="#1a1a1f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1692,7 +1692,7 @@
         </svg>
       </div>
       <div class="subtitle">Raum + Schrift</div>
-      <h1>Lagerentnahme <span class="app-version">V1.46.2</span></h1>
+      <h1>Lagerentnahme <span class="app-version">V1.47.0</span></h1>
     </div>
 
     <div class="error-msg" id="login-error"></div>
@@ -2743,6 +2743,20 @@ const BAUPLAN_API   = 'https://bauplan.raum-und-schrift.de/api';
 const SUPABASE_URL  = 'https://pvkisqjsvpmwszhdsezs.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2a2lzcWpzdnBtd3N6aGRzZXpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4NDMzMzEsImV4cCI6MjA5NjQxOTMzMX0.LCushX90a_DSIQJKFUYyC3zNWBkqITKoSkuA9j7nyAY';
 
+// ════════════════ POSTKASTEN: EIN/AUS-SCHALTER ════════════════
+// Auf false gesetzt = Postkasten komplett deaktiviert (keine Meldungen, keine
+// Badges, Kachel/Icon ausgegraut). Der gesamte Code bleibt unverändert
+// erhalten – zum Reaktivieren einfach wieder auf true setzen.
+// GANZ AM ANFANG definiert, damit keine spätere Stelle im Code (auch nicht
+// beim allerersten Ausführen) versehentlich vorher darauf zugreift.
+const POSTKASTEN_ENABLED = false;
+
+// ════════════════ STANDORTPRÜFUNG: EIN/AUS-SCHALTER ════════════════
+// false = Mitnehmen ist von überall möglich (kein GPS-Zugriff, keine Banner).
+// Der gesamte GPS-Code bleibt erhalten – zum Reaktivieren auf true setzen.
+// Ebenfalls ganz am Anfang definiert, damit nichts davor darauf zugreift.
+const STANDORTPRUEFUNG_ENABLED = false;
+
 // ════════════════ GLOBALER ZUSTAND ════════════════
 const S = {
   token: null,
@@ -2772,7 +2786,7 @@ const S = {
   todoSharedWithMe: [],     // wer hat seine Liste mit mir geteilt
   todoChannel: null,        // Realtime-Channel für todos
   appUsers: [],             // alle app_users (für Teilen-Dropdown)
-  gpsAtOffice: false,       // letzter Stand: ist Vorarbeiter am Firmenstandort?
+  gpsAtOffice: !STANDORTPRUEFUNG_ENABLED,       // letzter Stand: ist Vorarbeiter am Firmenstandort?
   gpsLastCheck: 0,          // Timestamp letzter GPS-Check
   gpsDistance: null,        // letzte Distanz in Metern
   gpsError: null,           // letzter GPS-Fehler
@@ -2795,13 +2809,6 @@ const OFFICE_LON = 12.9386267;
 const OFFICE_RADIUS_M = 200;
 
 // kurzer Helfer
-// ════════════════ POSTKASTEN: EIN/AUS-SCHALTER ════════════════
-// Auf false gesetzt = Postkasten komplett deaktiviert (keine Meldungen, keine
-// Badges, Kachel/Icon ausgegraut). Der gesamte Code bleibt unverändert
-// erhalten – zum Reaktivieren einfach wieder auf true setzen.
-// GANZ AM ANFANG definiert, damit keine spätere Stelle im Code (auch nicht
-// beim allerersten Ausführen) versehentlich vorher darauf zugreift.
-const POSTKASTEN_ENABLED = false;
 
 const el = id => document.getElementById(id);
 
@@ -3058,7 +3065,7 @@ window.doLogout=function(){
   S.token=null; S.userEmail=null; S.userName=null; S.role='user'; S.items=[]; S.sites=[]; S.journal=[];
   S.foremanSites=null; S.foremanSitesLoading=false;
   S.todos=[]; S.todoShares=[]; S.todoSharedWithMe=[]; S.appUsers=[];
-  S.todoSelItem=null; S.todoSelSite=''; S.gpsAtOffice=false; S.gpsLastCheck=0; S.gpsDistance=null; S.gpsError=null;
+  S.todoSelItem=null; S.todoSelSite=''; S.gpsAtOffice=!STANDORTPRUEFUNG_ENABLED; S.gpsLastCheck=0; S.gpsDistance=null; S.gpsError=null;
   S.stockAlerts=[];
   S.restlagerBewegungen=[]; S.restlagerSelBatch=null; S.restlagerAuslSelSite=''; S.restmatSelSite='';
   if(S.channel){ try{ S.sb.removeChannel(S.channel); }catch(e){} S.channel=null; }
@@ -7008,6 +7015,8 @@ function haversineMeters(lat1, lon1, lat2, lon2){
 }
 
 async function checkGPS(){
+  // Prüfung deaktiviert: überall erlaubt, kein Zugriff auf den Standort nötig
+  if(!STANDORTPRUEFUNG_ENABLED){ S.gpsError = null; S.gpsAtOffice = true; S.gpsDistance = null; return true; }
   S.gpsError = null;
   if(!navigator.geolocation){
     S.gpsError = 'GPS nicht verfuegbar';
@@ -7035,6 +7044,7 @@ async function checkGPS(){
 }
 
 function gpsBannerHtml(reCheckFn){
+  if(!STANDORTPRUEFUNG_ENABLED) return '';
   if(S.gpsError){
     return `
       <div class="todo-banner err">
@@ -7068,6 +7078,13 @@ function renderGpsBanner(){
 }
 
 window.checkGpsAndRender = async function(){
+  if(!STANDORTPRUEFUNG_ENABLED){
+    S.gpsError = null; S.gpsAtOffice = true; S.gpsDistance = null;
+    renderGpsBanner();
+    if(typeof renderTodoList==='function') renderTodoList();
+    if(typeof refreshSaveBtnState==='function') refreshSaveBtnState();
+    return;
+  }
   const b = el('todo-gps-banner');
   if(b) b.innerHTML = '<div class="todo-banner warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg><div>Standort wird geprueft…</div></div>';
   await checkGPS();
@@ -7076,6 +7093,12 @@ window.checkGpsAndRender = async function(){
   if(typeof refreshSaveBtnState==='function') refreshSaveBtnState();
 };
 window.checkGpsAndRenderEntnahme = async function(){
+  if(!STANDORTPRUEFUNG_ENABLED){
+    S.gpsError = null; S.gpsAtOffice = true; S.gpsDistance = null;
+    renderGpsBanner();
+    refreshSaveBtnState();
+    return;
+  }
   const b2 = el('entnahme-gps-banner');
   if(b2) b2.innerHTML = '<div class="todo-banner warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg><div>Standort wird geprueft…</div></div>';
   await checkGPS();
